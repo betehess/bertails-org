@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Fixing time series</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+     @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+     @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+     @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+     
+     body { font-family: 'Droid Serif'; }
+     h1, h2, h3 {
+       font-family: 'Yanone Kaffeesatz';
+       font-weight: normal;
+     }
+     .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+
+     .img100 img {
+       width: 100%;
+       display: block;
+       margin:0 auto;
+     }
+
+     .img90 img {
+       width: 80%;
+       display: block;
+       margin:0 auto;
+     }
+
+     .img80 img {
+       width: 80%;
+       display: block;
+       margin:0 auto;
+     }
+
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Fixing time series
+
+## are time series an exception?
+
+---
+
+# complex time series
+
+.img80[![complex time series](complex-time-series.svg)]
+
+???
+
+
+---
+
+# continuous vs discrete
+
+## depends on min and max
+
+.img80[![continuous](continuous.svg)]
+
+???
+
+* linear, log
+
+---
+
+# discrete domain
+
+## aka ordinal (categorical + order), depends on data
+
+.img80[![discrete](discrete.svg)]
+
+--
+
+
+### Q: is Quarterized data just a discrete domain?
+
+
+
+---
+
+# daily data as discrete
+
+.img80[![discrete daily](discrete-daily.svg)]
+
+---
+
+# daily data as continuous
+
+.img80[![continuous daily](continuous-daily.svg)]
+
+---
+
+# Plot[X, Y]
+
+.img80[![plotting](plotting.svg)]
+
+
+
+---
+
+# how to differentiate discrete from continuous data?
+
+* easy one: `LocalDate` is not ok for Quarters
+
+* is `LocalDate` discrete, continuous, or both?
+
+* how to communicate that discrete values have different intervals?
+
+---
+
+# the real meaning of `X` in `Plot[X,Y]`
+
+```
+(p: Plot[X, Number]).resolveXAxis().applyAsValue(x1)
+```
+
+* `X1`, `X2`, etc.?
+
+* should `X` be [0, 1]?
+  * and we map everything to [0, 1]?
+
+* how are the values in `X` related to the visual axis?
+
+
+
+---
+
+# data-driven charts
+
+* overlays are complex in `ggplot2`: you need to align the axes manually
+
+* main idea: you do as much as you can **in** the frame before handing it to the chart engine
+
+
+    </textarea>
+    <script src="remark-latest.min.js">
+    </script>
+    <script>
+     var slideshow = remark.create();
+    </script>
+  </body>
+</html>

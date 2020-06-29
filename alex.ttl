@@ -1,0 +1,23 @@
+@prefix schema: <http://schema.org/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix cert: <http://www.w3.org/ns/auth/cert#> .
+
+<http://bertails.org/alex#me>
+  a schema:Person ;
+  schema:name "Alexandre Bertails" ;
+  schema:image <http://bertails.org/image/alex.jpg> ;
+  cert:key [
+    a cert:RSAPublicKey ;
+    cert:exponent 65537 ;
+    cert:modulus "bcc42b23eaeeba97779457425208b9555d50f5d6cfc56f0455617ba146b51ddf97aba661efcfd10dd64727a8db12036f323ed7e3a03545bdd4a0e9b7ac9984545fa5c32a94c41af48c7c6e517fd8c962012c56cb475678800f84c422c1fd7d93ef6ffc19ed32ad26e7be22ac70b06b823a33060f901259ba36531904423c2c8a0fc0a069bd523e654009e9d3fe1523adf6d98ee43f3c1fa6064b3f4c2ec81bae12a5c38628da61aa8a91a3f7568362fbcaddfe89fe37c64f12aead14d89e1e5c3c88af11742917e42209eafb8ee29d5b1603a14891a80a50797016e28fea5c15ad43e7e478ed7c2eee79c8a78225d13c454bdddb5505becb726f68db9c7a427b"^^<http://www.w3.org/2001/XMLSchema#hexBinary>
+  ] ;
+  foaf:knows <http://bblfish.net/people/henry/card#me> ;
+  foaf:knows <http://www.w3.org/People/Berners-Lee/card#i> .
+
+<http://www.w3.org/People/Berners-Lee/card#i>
+  foaf:name "Timothy Berners-Lee";
+  foaf:nick "TimBL" .
+
+<http://bblfish.net/people/henry/card#me>
+  a foaf:Person ;
+  foaf:name "Henry J. Story" .

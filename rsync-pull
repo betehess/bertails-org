@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo "usage: $0 file-to-downsync"
+    exit 1
+fi
+
+cd $(dirname "$0")
+
+rsync -avzv \
+      -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+      --progress \
+      --exclude "*~" \
+      "betehess@bertails.org:~/www/$1" .

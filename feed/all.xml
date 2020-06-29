@@ -1,0 +1,850 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>bertails.org</title>
+  <link href="https://bertails.org/" rel="alternate"></link>
+  <link href="https://bertails.org/feed/all.xml" rel="self"></link>
+  <id>https://bertails.org/</id>
+  <updated>2015-06-17T00:00:00-05:00</updated>
+  
+  <entry>
+    <title>An RDF abstraction for the JVM</title>
+    <link href="https://bertails.org/2015/06/17/an-rdf-abstraction-for-the-jvm/" rel="alternate"></link>
+    <updated>2015-06-17T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2015-06-17:2015/06/17/an-rdf-abstraction-for-the-jvm/</id>
+    <summary type="html">&lt;p&gt;&lt;a href=&quot;http://commonsrdf.incubator.apache.org/&quot;&gt;Commons RDF&lt;/a&gt; is an effort from the &lt;a href=&quot;https://jena.apache.org/&quot;&gt;Jena&lt;/a&gt; and &lt;a href=&quot;http://rdf4j.org/&quot;&gt;Sesame&lt;/a&gt; communities &lt;cite&gt;to define a common library for RDF 1.1 on the JVM&lt;/cite&gt;. In my opinion, the current proposal suffers from design issues which seriously limit interoperability despite the stated objective. In this article, I will explain the limits of the current design and discuss alternatives to address the flaws.&lt;/p&gt;
+&lt;p&gt;This article is as much about RDF on the JVM as it is about API design and abstractions in Java. No prior knowledge with RDF is required as I will introduce the RDF model itself. So you might end up learning what RDF is as a side-effect :-)&lt;/p&gt;
+&lt;h2 id=&quot;the-problem&quot;&gt;the problem RDF Commons wants to solve&lt;/h2&gt;
+&lt;p&gt;For a long time now, if you wanted to do RDF (and SPARQL) stuff in Java, you basically had the choice between &lt;a href=&quot;https://jena.apache.org/&quot;&gt;Jena&lt;/a&gt; and &lt;a href=&quot;http://rdf4j.org/&quot;&gt;Sesame&lt;/a&gt;. Those two libraries were developed independently and didn&amp;rsquo;t share much, despite the fact that they are both implementations of &lt;a href=&quot;http://www.w3.org/standards/techs/rdf#w3c_all&quot;&gt;well-defined Web standards&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;So people have come up with ways to go back-and-forth between those two worlds: object adapters, meta APIs, ad-hoc APIs, etc. For example, let&amp;rsquo;s say you wanted to use that awesome asynchronous parser library for &lt;a href=&quot;http://www.w3.org/TR/turtle/&quot;&gt;Turtle&lt;/a&gt;. It returns a Jena graph while your stack is mainly Sesame? Well it&amp;rsquo;s too bad for you. So you use an adapter which wraps every single objects composing your graph.&lt;/p&gt;
+&lt;p&gt;So let&amp;rsquo;s say you have the opportunity to solve those problems. What would you do? If you have done software development for a while, especially if it was in Java, your first thought might be about defining a common &lt;a href=&quot;http://math.hws.edu/javanotes/c5/s5.html#OOP.5.2&quot;&gt;class hierarchy&lt;/a&gt; coupled with an &lt;a href=&quot;http://en.wikipedia.org/wiki/Abstract_factory_pattern&quot;&gt;abstract factory&lt;/a&gt;. Then you could go back to the author of the Turtle library with a Pull Request using the new common interfaces, and everybody is happy, right?&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s see how this pans out in the case of Commons RDF 0.1.&lt;/p&gt;
+&lt;h2 id=&quot;commons-rdf&quot;&gt;Commons RDF&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&quot;http://commonsrdf.incubator.apache.org/&quot;&gt;Commons RDF&lt;/a&gt; closely follows &lt;a href=&quot;http://www.w3.org/TR/rdf11-concepts/&quot;&gt;the concepts defined in RDF 1.1&lt;/a&gt;, including the terms used. It specifically targets plain RDF (as opposed to &lt;a href=&quot;http://www.w3.org/TR/rdf11-concepts/#section-generalized-rdf&quot;&gt;Generalized RDF&lt;/a&gt;) and wants to be type-safe as much as possible e.g. only IRIs and blank nodes are accepted in the subject position for a triple.&lt;/p&gt;
+&lt;p&gt;Here is a overview of the design of Commons RDF:&lt;/p&gt;
+&lt;div style=&quot;float: right; margin-left: 4em; margin-right: 2em;&quot;&gt;
+  &lt;a href=&quot;class-diagram.png&quot;&gt;
+    &lt;img src=&quot;class-diagram.png&quot; alt=&quot;Commons RDF class diagram&quot; style=&quot;height: 30em&quot; /&gt;
+  &lt;/a&gt;
+  &lt;p style=&quot;text-align: center; margin-top: 0px;&quot;&gt;link to &lt;a href=&quot;http://commonsrdf.incubator.apache.org/images/class-diagram.png&quot;&gt;original image&lt;/a&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;each RDF concept is mapped onto a Java interface: &lt;code&gt;Graph&lt;/code&gt;, &lt;code&gt;Triple&lt;/code&gt;, &lt;code&gt;RDFTerm&lt;/code&gt;, &lt;code&gt;IRI&lt;/code&gt;, &lt;code&gt;BlankNode&lt;/code&gt;, &lt;code&gt;Literal&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;there is an additional concept: &lt;code&gt;BlankNodeOrIRI&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;there are sub-type relationships between &lt;code&gt;RDFTerm&lt;/code&gt;, &lt;code&gt;BlankNodeOrIRI&lt;/code&gt;, &lt;code&gt;IRI&lt;/code&gt;, &lt;code&gt;BlankNode&lt;/code&gt;, and &lt;code&gt;Literal&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the interfaces expose methods to access their components&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;the factory &lt;code&gt;RDFTermFactory&lt;/code&gt; knows how to create concrete instances of the interfaces&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div style=&quot;clear: both;&quot;&gt;&lt;/div&gt;
+&lt;p&gt;Here is a quick look at what RDF &lt;em&gt;actually is&lt;/em&gt; in the Commons RDF world (this is basically copied from the &lt;a href=&quot;https://git-wip-us.apache.org/repos/asf?p=incubator-commonsrdf.git;a=tree;f=api/src/main/java/org/apache/commons/rdf/api;h=8f2db3110cd11d18e6128eac40cdf597372b73d0;hb=9ee66b0078da61fed85b5fe0b6d5481e9300b140&quot;&gt;source code&lt;/a&gt;):&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;package org.apache.commons.rdf.api;
+
+public interface Graph {
+  void add(Triple triple);
+  boolean contains(Triple triple);
+  Stream&amp;lt;? extends Triple&amp;gt; getTriples();
+  ...
+}
+
+public interface Triple {
+  BlankNodeOrIRI getSubject();
+  IRI getPredicate();
+  RDFTerm getObject();
+}
+
+public interface RDFTerm {
+  String ntriplesString();
+}
+
+public interface BlankNodeOrIRI extends RDFTerm { }
+
+public interface IRI extends BlankNodeOrIRI {
+  String getIRIString();
+}
+
+public interface BlankNode extends BlankNodeOrIRI {
+  String uniqueReference();
+}
+
+public interface Literal extends RDFTerm {
+  String getLexicalForm();
+  IRI getDatatype();
+  Optional&amp;lt;String&amp;gt; getLanguageTag();
+}
+
+public interface RDFTermFactory {
+  default Graph createGraph() throws UnsupportedOperationException { ... }
+  default IRI createIRI(String iri)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  /** The returned blank node MUST NOT be equal to any existing */
+  default BlankNode createBlankNode()
+    throws UnsupportedOperationException { ... }
+  /** All `BlankNode`s created with the given `name` MUST be equivalent */
+  default BlankNode createBlankNode(String name)
+    throws UnsupportedOperationException { ... }
+  default Literal createLiteral(String lexicalForm)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  default Literal createLiteral(String lexicalForm, IRI dataType)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  default Literal createLiteral(String lexicalForm, String languageTag)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  default Triple createTriple(BlankNodeOrIRI subject, IRI predicate, RDFTerm object)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Everything looks actually good and pretty standard, right? So you might be wondering why I am not that thrilled by this approach. Keep on reading then :-)&lt;/p&gt;
+&lt;h2 id=&quot;class-based-design&quot;&gt;class-based design&lt;/h2&gt;
+&lt;p&gt;As a reminder, in most static languages, &lt;strong&gt;types are only a compile time information&lt;/strong&gt;. In Java, classes and interfaces in Java are just a &lt;a href=&quot;http://stackoverflow.com/a/5315433/1057315&quot;&gt;reified&lt;/a&gt; version of types (up to generics &lt;a href=&quot;https://docs.oracle.com/javase/tutorial/java/generics/erasure.html&quot;&gt;which get erased by the JVM&lt;/a&gt;), meaning that they are an (incomplete &lt;em&gt;by design&lt;/em&gt;) abstraction for types that can be manipulated at runtime.&lt;/p&gt;
+&lt;p&gt;RDF Commons decided to model the RDF types using interfaces. In Java, interfaces and classes rely on what we call &lt;a href=&quot;http://en.wikipedia.org/wiki/Nominal_type_system#Nominal_subtyping&quot;&gt;nominal subtyping&lt;/a&gt;. It means that a concrete implementation is required to &lt;em&gt;explicitly&lt;/em&gt; extend (or implement) an interface to be considered a subtype.&lt;/p&gt;
+&lt;p&gt;In other words, despite &lt;code&gt;java.lang.UUID&lt;/code&gt; being a perfectly acceptable candidate for being a &lt;code&gt;BlankNode&lt;/code&gt;, it is impossible to use it &lt;em&gt;directly&lt;/em&gt; because &lt;code&gt;UUID&lt;/code&gt; does not implement &lt;code&gt;BlankNode&lt;/code&gt;, so &lt;code&gt;UUID&lt;/code&gt; has to be wrapped. There are actually many other cases like that: &lt;code&gt;java.net.URI&lt;/code&gt; or &lt;code&gt;akka.http.model.Uri&lt;/code&gt; are acceptable candidates for &lt;code&gt;IRI&lt;/code&gt;, &lt;code&gt;java.lang.String&lt;/code&gt; or &lt;code&gt;java.lang.Integer&lt;/code&gt; for &lt;code&gt;Literal&lt;/code&gt;, etc.&lt;/p&gt;
+&lt;p&gt;So here is my first and main complaint about Commons RDF: &lt;strong&gt;it forces implementers to coerce their types into its own class hierarchy&lt;/strong&gt; and there is no good reason for doing so.&lt;/p&gt;
+&lt;h2 id=&quot;generics&quot;&gt;generics&lt;/h2&gt;
+&lt;p&gt;How can be define abstract types and operations on them without relying on class/interface inheritance? You already know the answer, as it is the same story than with &lt;code&gt;java.util.Comparator&amp;lt;T&amp;gt;&lt;/code&gt; and &lt;code&gt;java.lang.Comparable&amp;lt;T&amp;gt;&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s see what the factory would look like with this approach:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public interface RDFTermFactory&amp;lt;Graph,
+                                Triple,
+                                RDFTerm,
+                                BlankNodeOrIRI extends RDFTerm,
+                                IRI extends BlankNodeOrIRI,
+                                BlankNode extends BlankNodeOrIRI,
+                                Literal extends RDFTerm&amp;gt; {
+
+  /* same factory functions as before go here */
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Instead of referring to Java interfaces, we now refer to the new introduced generics. In a way, &lt;strong&gt;generics are more abstract than interfaces&lt;/strong&gt;. Also, generics let you express the subtype relationship using &lt;code&gt;extends&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;As you have probably already noticed, that only gives us a way to &lt;em&gt;create inhabitants for those types&lt;/em&gt;. We also need a way to &lt;em&gt;access their components&lt;/em&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;rdf-module&quot;&gt;RDF module&lt;/h2&gt;
+&lt;p&gt;Accessing components was the role of the methods defined on the interfaces. So we just have to move them into the factory and make them &lt;em&gt;functions&lt;/em&gt; instead. And because the factory is now made of all the operations actually defining the RDF model, we can refer to it as the &lt;strong&gt;&lt;code&gt;RDF&lt;/code&gt; module&lt;/strong&gt;.&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public interface RDF&amp;lt;Graph,
+                     Triple,
+                     RDFTerm,
+                     BlankNodeOrIRI extends RDFTerm,
+                     IRI extends BlankNodeOrIRI,
+                     BlankNode extends BlankNodeOrIRI,
+                     Literal extends RDFTerm&amp;gt; {
+
+  // from org.apache.commons.rdf.api.RDFTermFactory
+  BlankNode createBlankNode();
+  BlankNode createBlankNode(String name);
+  Graph createGraph();
+  IRI createIRI(String iri) throws IllegalArgumentException;
+  Literal createLiteral(String lexicalForm) throws IllegalArgumentException;
+  Literal createLiteral(String lexicalForm, IRI dataType) throws IllegalArgumentException;
+  Literal createLiteral(String lexicalForm, String languageTag) throws IllegalArgumentException;
+  Triple createTriple(BlankNodeOrIRI subject, IRI predicate, RDFTerm object) throws IllegalArgumentException;
+  
+  // from org.apache.commons.rdf.api.Graph
+  Graph add(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  Graph add(Graph graph, Triple triple);
+  Graph remove(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  boolean contains(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  Stream&amp;lt;? extends Triple&amp;gt; getTriplesAsStream(Graph graph);
+  Iterable&amp;lt;Triple&amp;gt; getTriplesAsIterable(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  long size(Graph graph);
+
+  // from org.apache.commons.rdf.api.Triple
+  BlankNodeOrIRI getSubject(Triple triple);
+  IRI getPredicate(Triple triple);
+  RDFTerm getObject(Triple triple);
+
+  // from org.apache.commons.rdf.api.RDFTerm
+  &amp;lt;T&amp;gt; T visit(RDFTerm t,
+              Function&amp;lt;IRI, T&amp;gt; fIRI,
+	      Function&amp;lt;BlankNode, T&amp;gt; fBNode,
+	      Function&amp;lt;Literal, T&amp;gt; fLiteral);
+
+  // from org.apache.commons.rdf.api.IRI
+  String getIRIString(IRI iri);
+
+  // from org.apache.commons.rdf.api.BlankNode
+  String uniqueReference(BlankNode bnode);
+
+  // from org.apache.commons.rdf.api.Literal
+  IRI getDatatype(Literal literal);
+  Optional&amp;lt;String&amp;gt; getLanguageTag(Literal literal);
+  String getLexicalForm(Literal literal);
+  
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We are doing exactly the same thing as &lt;a href=&quot;http://stackoverflow.com/questions/2709821/what-is-the-purpose-of-self-in-python&quot;&gt;Python does with &lt;code&gt;self&lt;/code&gt;&lt;/a&gt;: class methods are just functions where the first argument used to be the receiver (aka the object) of the methods.&lt;/p&gt;
+&lt;p&gt;For the sake of brevity, I am actually showing you the final result for the &lt;code&gt;RDF&lt;/code&gt; module. Let&amp;rsquo;s discuss the other issues that were fixed at the same time.&lt;/p&gt;
+&lt;h2 id=&quot;visitor&quot;&gt;visitor&lt;/h2&gt;
+&lt;p&gt;In Commons RDF 0.1, an &lt;code&gt;RDFTerm&lt;/code&gt; is either an &lt;code&gt;IRI&lt;/code&gt; or a &lt;code&gt;BlankNode&lt;/code&gt; or a &lt;code&gt;Literal&lt;/code&gt;. It is not clear to me how a user can dispatch a function over an &lt;code&gt;RDFTerm&lt;/code&gt; based on its actual nature.&lt;/p&gt;
+&lt;p&gt;My best guess is that one is expected to use &lt;code&gt;instanceof&lt;/code&gt; to discriminate between the possible interfaces. In practice, this cannot really work. As a counter-example, consider this implementation of &lt;code&gt;RDFTerm&lt;/code&gt; which relies on the &lt;a href=&quot;http://www.w3.org/TR/n-triples/&quot;&gt;N-Triples&lt;/a&gt; encoding of the term:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public class NTriplesBased implements RDFTerm, IRI, BlankNode, Literal {
+  private String ntriplesRepresentation;
+  ...
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;So how does one visit a class-hierarchy in Java? By using the &lt;a href=&quot;http://en.wikipedia.org/wiki/Design_Patterns&quot;&gt;Gang of Four&lt;/a&gt;&amp;rsquo;s &lt;a href=&quot;http://en.wikipedia.org/wiki/Visitor_pattern&quot;&gt;Visitor Pattern&lt;/a&gt; of course! Ah ah, just kidding. It&amp;rsquo;s 2015, we can now have a &lt;a href=&quot;http://logji.blogspot.com/2012/02/correcting-visitor-pattern.html&quot;&gt;stateless and polymorphic version of the visitor pattern&lt;/a&gt;. Actually, we can do even better using Java 8&amp;rsquo;s lambdas.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;RDF#visit&lt;/code&gt; function defined above in the &lt;code&gt;RDF&lt;/code&gt; module is a &lt;a href=&quot;https://en.wikipedia.org/wiki/Catamorphism&quot;&gt;visitor on steroids&lt;/a&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;&amp;lt;T&amp;gt; T visit(RDFTerm t,
+            Function&amp;lt;IRI, T&amp;gt; fIRI,
+            Function&amp;lt;BlankNode, T&amp;gt; fBNode,
+            Function&amp;lt;Literal, T&amp;gt; fLiteral);
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The contract for &lt;code&gt;RDF#visit&lt;/code&gt; is pretty simple: dispatch the right function &amp;ndash; &lt;code&gt;fIRI&lt;/code&gt; or &lt;code&gt;fBNode&lt;/code&gt; or &lt;code&gt;fLiteral&lt;/code&gt; &amp;ndash; by case, depending on what the &lt;code&gt;RDFTerm t&lt;/code&gt; actually is. Note that the function itself is parameterized on the return type, so that any computation can be defined. And finally, as explained before, the &lt;a href=&quot;http://en.wikipedia.org/wiki/Visitor_pattern#Details&quot;&gt;&lt;em&gt;element&lt;/em&gt; part of the visitor&lt;/a&gt; &amp;ndash; the &lt;code&gt;RDFTerm&lt;/code&gt; itself &amp;ndash; has become the first argument of the function, instead of being the receiver of a method.&lt;/p&gt;
+&lt;p&gt;Finally, here is what it looks like on the user site:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;RDFTerm term = ???;
+String someString = rdf.visit(term,
+                              iri     -&amp;gt; rdf.getIRIString(iri),
+                              bnode   -&amp;gt; rdf.uniqueReference(bnode),
+                              literal -&amp;gt; rdf.getLexicalForm(literal));
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id=&quot;downcasting&quot;&gt;downcasting&lt;/h2&gt;
+&lt;p&gt;&lt;code&gt;RDFTermFactory&lt;/code&gt; follows the &lt;a href=&quot;http://en.wikipedia.org/wiki/Abstract_factory_pattern&quot;&gt;Abstract Factory pattern&lt;/a&gt; which is in practice very limited. Pretty often, seeing the generic interface is just not enough and people end up &lt;a href=&quot;http://stackoverflow.com/questions/380813/downcasting-in-java&quot;&gt;downcasting&lt;/a&gt; anyway because other functionalities may need to be exposed from the sub-types.&lt;/p&gt;
+&lt;p&gt;In my opinion, this is a big issue in something Commons RDF and &lt;a href=&quot;https://www.artima.com/interfacedesign/PreferPoly.html&quot;&gt;we can do better&lt;/a&gt;. In fact, it comes for free in the &lt;code&gt;RDF&lt;/code&gt; module defined above, as &lt;strong&gt;the user sees the types that were actually bound to the generics&lt;/strong&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;immutable-graph&quot;&gt;immutable graph&lt;/h2&gt;
+&lt;p&gt;If you look at &lt;code&gt;Graph#add(Triple)&lt;/code&gt; you&amp;rsquo;ll see that it returns &lt;code&gt;void&lt;/code&gt;: graphs in Commons RDF 0.1 &lt;em&gt;have to be mutated in place and there is no way around it&lt;/em&gt;. This is wrong but do not expect me to use this post for making the case for alowing immutable graphs: it&amp;rsquo;s 2015 and I should not have to do that.&lt;/p&gt;
+&lt;p&gt;Especially when the fix is very simple: &lt;strong&gt;just make &lt;code&gt;add&lt;/code&gt; return a new &lt;code&gt;Graph&lt;/code&gt;&lt;/strong&gt;. That&amp;rsquo;s actually what &lt;code&gt;Graph RDF#add(Graph,Triple)&lt;/code&gt; does.&lt;/p&gt;
+&lt;p&gt;Note that with this approach, one can still manipulate mutable graphs. It&amp;rsquo;s just that code using &lt;code&gt;RDF#add&lt;/code&gt; should always use the returned &lt;code&gt;Graph&lt;/code&gt;, even if it happens to have been mutated in place.&lt;/p&gt;
+&lt;h2 id=&quot;stateless-bnode-generator&quot;&gt;stateless blank node generator&lt;/h2&gt;
+&lt;p&gt;This is how one can create new blank nodes in Commons RDF 0.1 (&lt;a href=&quot;https://git-wip-us.apache.org/repos/asf?p=incubator-commonsrdf.git;a=blob;f=api/src/main/java/org/apache/commons/rdf/api/RDFTermFactory.java;h=2801814832b5961769c6d2fbde02d1e494db1124;hb=9ee66b0078da61fed85b5fe0b6d5481e9300b140#l42&quot;&gt;full javadoc here&lt;/a&gt;):&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;/** The returned blank node MUST NOT be equal to any existing */
+default BlankNode createBlankNode()
+  throws UnsupportedOperationException { ... }
+/** All `BlankNode`s created with the given `name` MUST be equivalent */
+default BlankNode createBlankNode(String name)
+  throws UnsupportedOperationException { ... }
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The contract on the second &lt;code&gt;createBlankNode&lt;/code&gt; is problematic as &lt;em&gt;a map from names to previously allocated &lt;code&gt;BlankNodes&lt;/code&gt; has to be maintained somewhere&lt;/em&gt;. Of course, I am ruling out strategies relying on hashes e.g. &lt;code&gt;UUID#nameUUIDFromBytes&lt;/code&gt;, because the &lt;code&gt;BlankNode&lt;/code&gt;s would no longer be scoped and two different blank nodes &lt;code&gt;_:b1&lt;/code&gt; from two different &lt;a href=&quot;http://www.w3.org/TR/turtle/&quot;&gt;Turtle&lt;/a&gt; documents would return the &amp;ldquo;equivalent &lt;code&gt;BlankNode&lt;/code&gt;&amp;rdquo;. So that means that &lt;strong&gt;&lt;code&gt;RDFTermFactory&lt;/code&gt; is not stateless&lt;/strong&gt; and whether the state is within the factory or in a shared state is not relevant.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;I believe that this is outside of the RDF model and that it has no place in the framework.&lt;/strong&gt; The mapping from &lt;code&gt;name&lt;/code&gt; to &lt;code&gt;BlankNode&lt;/code&gt; can always be maintained on the user site, using the strategy that fits the best. Still you can see that I defined &lt;code&gt;BlankNode RDF#createBlankNode(String)&lt;/code&gt;. It&amp;rsquo;s because I think another contract can be useful here, where a &lt;code&gt;String&lt;/code&gt; can be passed as a hint to be retrieved later e.g. when using &lt;code&gt;RDF#uniqueReference&lt;/code&gt;. But it&amp;rsquo;s only a hint, it has no impact on the model itself.&lt;/p&gt;
+&lt;h2 id=&quot;UnsupportedOperationException&quot;&gt;UnsupportedOperationException&lt;/h2&gt;
+&lt;p&gt;I just do not understand the value in specifying methods that can throw a &lt;code&gt;UnsupportedOperationException&lt;/code&gt; in the context of Commons RDF. I mean, how am I expected to recover from such an exception? Does it make sense to allow for partial implementation?&lt;/p&gt;
+&lt;p&gt;Until I see a good use case for that, I have simply removed those exceptions declarations from the functions defined in the &lt;code&gt;RDF&lt;/code&gt; module.&lt;/p&gt;
+&lt;h2 id=&quot;user-side&quot;&gt;user side&lt;/h2&gt;
+&lt;p&gt;Finally, let&amp;rsquo;s see how a library user could define a parser/serializer using the &lt;code&gt;RDF&lt;/code&gt; module:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-java&quot;&gt;public class WeirdTurtle&amp;lt;Graph, Triple, RDFTerm, BlankNodeOrIRI extends RDFTerm, IRI extends BlankNodeOrIRI, BlankNode extends BlankNodeOrIRI, Literal extends RDFTerm&amp;gt; {
+
+  private RDF&amp;lt;Graph, Triple, RDFTerm, BlankNodeOrIRI, IRI, BlankNode, Literal&amp;gt; rdf;
+
+  WeirdTurtle(RDF&amp;lt;Graph, Triple, RDFTerm, BlankNodeOrIRI, IRI, BlankNode, Literal&amp;gt; rdf) {
+    this.rdf = rdf;
+  }
+
+  /* a very silly parser */
+  public Graph parse(String input) {
+    Triple triple =
+      rdf.createTriple(rdf.createIRI(&amp;quot;http://example.com/Alice&amp;quot;),
+                       rdf.createIRI(&amp;quot;http://example.com/name&amp;quot;),
+                       rdf.createLiteral(&amp;quot;Alice&amp;quot;));
+    Graph graph = rdf.createGraph();
+    return rdf.add(graph, triple);
+  }
+
+  /* a very silly serializer */
+  public String serialize(Graph graph) {
+    Triple triple = rdf.getTriplesAsIterable(graph, null, null, null).iterator().next();
+    RDFTerm o = rdf.getObject(triple);
+    return rdf.visit(o,
+                     iri -&amp;gt; rdf.getIRIString(iri),
+                     bn -&amp;gt; rdf.uniqueReference(bn),
+                     lit -&amp;gt; rdf.getLexicalForm(lit));
+  }
+    
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id=&quot;summary&quot;&gt;summary&lt;/h2&gt;
+&lt;p&gt;Please allow me to be harsh: &lt;strong&gt;I believe that Commons RDF is mostly useless&lt;/strong&gt; in its current form as it suffers from the many flaws I have described in this article.&lt;/p&gt;
+&lt;p&gt;As you can expect, &lt;a href=&quot;http://mail-archives.apache.org/mod_mbox/commonsrdf-dev/201505.mbox/%3CCANvn8kzfnDoA=sgZLmHyN=bE2Gmba=1oNO0Haq72mi_GFkLRng@mail.gmail.com%3E&quot;&gt;I have already shared those concerns on the Commons RDF mailing list&lt;/a&gt; but I was told that it would be &lt;cite href=&quot;http://mail-archives.apache.org/mod_mbox/commonsrdf-dev/201505.mbox/%3CCAOfJQJ0Bnm0Z+J1F6NZMU8oDk0O7J1H+rM1fLL2kUpTtp_9ECQ@mail.gmail.com%3E&quot;&gt;much more valuable to see a patch about your proposal than a quick hack from scratch&lt;/cite&gt;. Sadly this is no &amp;ldquo;quick hack&amp;rdquo; and there is no small patch.&lt;/p&gt;
+&lt;p&gt;The good news is that &lt;strong&gt;the approach described here works with any RDF implementation on the JVM&lt;/strong&gt;, including Jena, Sesame, or &lt;a href=&quot;https://github.com/w3c/banana-rdf&quot;&gt;banana-rdf&lt;/a&gt;. And more importantly, &lt;strong&gt;it works today!&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;So if you are interested in a classless &amp;ndash; but still classy &amp;ndash; and immutable-friendly RDF abstraction for the JVM, I invite you to get in touch with me so that we can define that abstraction together.&lt;/p&gt;
+</summary>
+  </entry>
+  
+  <entry>
+    <title>How to read a PGP-encrypted email from the command-line</title>
+    <link href="https://bertails.org/2015/02/21/decrypt-pgp-email-from-command-line/" rel="alternate"></link>
+    <updated>2015-02-21T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2015-02-21:2015/02/21/decrypt-pgp-email-from-command-line/</id>
+    <summary type="html">&lt;p&gt;I received a PGP-encrypted email a couple days ago with confidential information. As I use GMail, I do not have direct support for PGP. Here are the steps I followed in order to extract the message and the files in it, from the command-line.&lt;/p&gt;
+&lt;p&gt;Disclaimer: I already knew the &lt;a href=&quot;https://www.gnupg.org/gph/en/manual.html&quot;&gt;big picture for PGP&lt;/a&gt; but it was the first time I had to effectively use it.&lt;/p&gt;
+&lt;p&gt;The message was empty with just a &lt;code&gt;msg.asc&lt;/code&gt; file in it:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ head msg.asc 
+-----BEGIN PGP MESSAGE-----
+Version: GnuPG v1
+
+hQEMA5Rm9tOuXUEGAQgAlcrBh++K7tBf6UhLPR3MM1S3N94xfSRamHWLXMBj5dp6
+9fg+a2GuQDRnta+QRgmlkgXha/6vU9eFzqx9Fh7neeFOC2aOc+8wq7KSNXjUaX0o
+wRdm1Jbh7fKy9ygNKGcTkikrpuVtYj1GrLjKD5CJ0gdGvv9vQIr8bUuVE+WwKgOr
+hIv4sWDXChiWahDtY8A/LktfAWd0eVZ47FzQQ/LKo89v8POxvqPACmyzDRNKkNhy
+AJSu2kjA44k/f79n880lMKZ89GMYjzKISxkxWYi4ccZPOmXgYFIrx5SFDhJNPhaw
+1gd3InrLpBdTYGuJZxwRcZ1SpY4v5siDLoXQHnuHONLtAZh02Viq/F0cwWuRyMk5
+km2lb3OREW2bHEzHTL5U4/Vb71cup0U7js7J7WvxOR7TCzizShX4w+uRAbfuLmH+
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;So I basically knew this had been encrypted using PGP with &lt;a href=&quot;http://keyserver.ubuntu.com/pks/lookup?op=vindex&amp;amp;search=bertails&amp;amp;fingerprint=on&quot;&gt;my public PGP key&lt;/a&gt;. I already had one because I need to &lt;a href=&quot;http://www.scala-sbt.org/release/docs/Using-Sonatype.html#First+-+PGP+Signatures&quot;&gt;sign artifacts when publishing on Sonatype&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;First, I install the GPG toolkit for Ubuntu:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ sudo apt-get install pgpgpg
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Then I get the sender&amp;rsquo;s public key from his website and add it to my keyring (&lt;a href=&quot;http://www.math.utah.edu/~beebe/PGP-notes.html&quot;&gt;source&lt;/a&gt;):&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ pgp -ka send.pubkey
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And I can finally extract the content.&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ pgp msg.asc
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The resulting file &lt;code&gt;msg&lt;/code&gt; is a typical email attachment:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;Content-Type: multipart/mixed; boundary=&amp;quot;a8Wt8u1KmwUX3Y2C&amp;quot;
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+
+
+--a8Wt8u1KmwUX3Y2C
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+
+...
+
+--a8Wt8u1KmwUX3Y2C
+Content-Type: application/pdf
+Content-Disposition: attachment; filename=&amp;quot;the-file.pdf&amp;quot;
+Content-Transfer-Encoding: base64
+
+...
+
+--a8Wt8u1KmwUX3Y2C--
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;I still need to extract the PDF. For that, I used &lt;code&gt;munpack&lt;/code&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ sudo apt-get install mpack
+$ munpack msg
+the-file.pdf (application/pdf)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Et voilà!&lt;/p&gt;
+&lt;h2&gt;Bonus&lt;/h2&gt;
+&lt;p&gt;If you have forgotten your passphrase to unlock your PGP key, you can use this command &lt;a href=&quot;http://stackoverflow.com/a/11484411&quot;&gt;found on stackoverflow&lt;/a&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ echo &amp;quot;1234&amp;quot; | gpg --no-use-agent -o /dev/null --local-user 'Alexandre Bertails &amp;lt;alexandre@bertails.org&amp;gt;' --no-greeting -as - &amp;amp;&amp;amp; echo &amp;quot;The correct passphrase was entered for this key&amp;quot;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;You can also use the &lt;code&gt;--passphrase&lt;/code&gt; parameter if needed.&lt;/p&gt;
+</summary>
+  </entry>
+  
+  <entry>
+    <title>Abstract Algebraic Data Type</title>
+    <link href="https://bertails.org/2015/02/15/abstract-algebraic-data-type/" rel="alternate"></link>
+    <updated>2015-02-15T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2015-02-15:2015/02/15/abstract-algebraic-data-type/</id>
+    <summary type="html">&lt;p&gt;Scala&amp;rsquo;s sealed class hierarchies (aka. &lt;a href=&quot;https://en.wikipedia.org/wiki/Algebraic_data_type&quot;&gt;Algebraic Data Types&lt;/a&gt;) are for sure one of its most praised features. Yet, they have one downside: they don&amp;rsquo;t let us abstract over the type hierarchy as &lt;code&gt;trait&lt;/code&gt;s and &lt;code&gt;class&lt;/code&gt;es are all about constructing new &lt;strong&gt;concrete&lt;/strong&gt; types.&lt;/p&gt;
+&lt;p&gt;In this post, we will explore how we can relax this constraint so that we can get an abstracted version of &lt;code&gt;scala.Option&lt;/code&gt;, which would allow us to switch implementations.&lt;/p&gt;
+&lt;h2 id=&quot;deconstructing&quot;&gt;Deconstructing Scala's algebraic data types&lt;/h2&gt;
+&lt;p&gt;As a reminder, here is &lt;a href=&quot;https://github.com/scala/scala/blob/2.11.x/src/library/scala/Option.scala&quot;&gt;how Scala&amp;rsquo;s &lt;code&gt;Option&lt;/code&gt;s are implemented&lt;/a&gt;:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;sealed abstract class Option[+A]
+final case class Some[+A](x: A) extends Option[A]
+case object None extends Option[Nothing]
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Here is the corresponding scaladoc diagram:&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;scala-option.png&quot;&gt;&lt;img src=&quot;scala-option.png&quot; alt=&quot;scala.Option&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;There are quite a few things happening here: * we need to be able to speak about the &lt;strong&gt;types and their relationships&lt;/strong&gt;; * then we need a way to &lt;strong&gt;inject&lt;/strong&gt; values in those types; * finally we need a way to inspect the values for those types to &lt;strong&gt;extract&lt;/strong&gt; their content.&lt;/p&gt;
+&lt;h2 id=&quot;type-and-relationships&quot;&gt;On types and subtyping&lt;/h2&gt;
+&lt;p&gt;There is a &lt;strong&gt;subtyping relationship&lt;/strong&gt; between &lt;code&gt;Some&lt;/code&gt;/&lt;code&gt;None&lt;/code&gt; and &lt;code&gt;Option&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Actually, &lt;code&gt;None&lt;/code&gt; itself is not a type but a value, whose type is &lt;code&gt;None.type&lt;/code&gt;, a subtype of &lt;code&gt;Option&lt;/code&gt;. Also, &lt;code&gt;Option&lt;/code&gt; and &lt;code&gt;Some&lt;/code&gt; are not technically types, but &lt;strong&gt;type constructors&lt;/strong&gt; (aka. &lt;a href=&quot;https://stackoverflow.com/questions/6246719/what-is-a-higher-kinded-type-in-scala&quot;&gt;higher kinded types&lt;/a&gt;): we need to provide a type &lt;code&gt;A&lt;/code&gt; to produce an &lt;code&gt;Option[A]&lt;/code&gt; type.&lt;/p&gt;
+&lt;p&gt;Finally, &lt;code&gt;Option&lt;/code&gt; is covariant in its parameterized type &lt;code&gt;A&lt;/code&gt;, so that &lt;code&gt;Option[Nothing]&lt;/code&gt; is a subtype of &lt;code&gt;Option[A]&lt;/code&gt; because &lt;a href=&quot;https://stackoverflow.com/questions/1728541/if-the-nothing-type-is-at-the-bottom-of-the-class-hierarchy-why-can-i-not-call&quot;&gt;&lt;code&gt;Nothing&lt;/code&gt; is a subtype of any type&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;injectors&quot;&gt;On injectors&lt;/h2&gt;
+&lt;p&gt;We have two (here somewhat equivalent) ways of &lt;strong&gt;injecting&lt;/strong&gt; a value of type &lt;code&gt;A&lt;/code&gt; into a &lt;code&gt;Some[A]&lt;/code&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;we can do that through the class constructor, eg. &lt;code&gt;new Some(42)&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;or more natually through &lt;code&gt;Some.apply&lt;/code&gt;, eg. &lt;code&gt;Some(42)&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;None&lt;/code&gt; is a singleton object, therefore it is the &lt;em&gt;only inhabitant&lt;/em&gt; of &lt;code&gt;None.type&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;extractors&quot;&gt;On extractors&lt;/h2&gt;
+&lt;p&gt;Given an &lt;code&gt;Option[A]&lt;/code&gt;, we can reason by cases using &lt;strong&gt;pattern matching&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This is achieved through the &lt;a href=&quot;http://docs.scala-lang.org/tutorials/tour/extractor-objects.html&quot;&gt;&lt;code&gt;unapply&lt;/code&gt; extractor methods&lt;/a&gt; on the &lt;code&gt;Option&lt;/code&gt; companion object. And because &lt;code&gt;Option&lt;/code&gt; is sealed, the type checker will be able to check for exhaustiveness.&lt;/p&gt;
+&lt;p&gt;Finally, given a &lt;code&gt;Some[A]&lt;/code&gt;, we can retrieve its content through the &lt;code&gt;x&lt;/code&gt; field accessor, or again using the &lt;code&gt;Some.unapply&lt;/code&gt; extractor.&lt;/p&gt;
+&lt;h2 id=&quot;abstracting-over-types&quot;&gt;Abstracting over types&lt;/h2&gt;
+&lt;p&gt;My colleague &lt;a href=&quot;https://twitter.com/dwhjames&quot;&gt;Dan&lt;/a&gt; explored &lt;a href=&quot;http://io.pellucid.com/blog/scalas-modular-roots&quot;&gt;how to encode modules in Scala&lt;/a&gt; in a previous blog article. If you haven&amp;rsquo;t read it yet, I warmly recommend you to do it, even if not strictly necessary for understanding what is going on here. Also here, I will choose yet another encoding using a &lt;a href=&quot;https://en.wikipedia.org/wiki/Type_class&quot;&gt;typeclass&lt;/a&gt; approach.&lt;/p&gt;
+&lt;p&gt;First, let&amp;rsquo;s define the entire type hierarchy in one place:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;import scala.language.higherKinds
+
+trait OptionSig {
+  type Option[+_]
+  type Some[+A] &amp;lt;: Option[A]
+  type None &amp;lt;: Option[Nothing]
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;We used the &lt;code&gt;Sig&lt;/code&gt; suffix as if &lt;code&gt;OptionSig&lt;/code&gt; was an &lt;a href=&quot;http://caml.inria.fr/pub/docs/oreilly-book/html/book-ora131.html&quot;&gt;ML module signature&lt;/a&gt; but this is &lt;strong&gt;not the complete signature&lt;/strong&gt; as there are no function defined in this trait.&lt;/p&gt;
+&lt;p&gt;This is just a convenient way to gather several types into a single one, a bit like a record, but for types. Given an &lt;code&gt;OptionSig&lt;/code&gt;, we can now speak about one of the types it contains using a type projection, eg. &lt;code&gt;OptionSig#Option[A]&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;abstracting-over-operations&quot;&gt;Abstracting over operations&lt;/h2&gt;
+&lt;p&gt;Now that we have a type hierarchy, we can complete our signature with the operations that must be defined over it:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;abstract class OptionOps[Sig &amp;lt;: OptionSig] {
+  def some[A](x: A): Sig#Some[A]
+  def none: Sig#None
+  def fold[A, B](opt: Sig#Option[A])(ifNone: =&amp;gt; B, ifSome: A =&amp;gt; B): B
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;You might be wondering why we need this &lt;code&gt;Sig&lt;/code&gt; as a subtype for &lt;code&gt;OptionSig&lt;/code&gt;, as this is usually not needed for typeclasses. It&amp;rsquo;s because we need to be able to project its inner types.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;some[A]&lt;/code&gt; is the injector for &lt;code&gt;Sig#Some[A]&lt;/code&gt;. &lt;code&gt;none&lt;/code&gt; doesn&amp;rsquo;t take any parameter, so it really acts as a singleton value for &lt;code&gt;Sig#None&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;fold[A, B]&lt;/code&gt; is the essence of the &lt;code&gt;Sig#Option[A]&lt;/code&gt; type: given the two passed functions, it can react on the actual type for &lt;code&gt;opt&lt;/code&gt; at runtime:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;if &lt;code&gt;opt&lt;/code&gt; was a &lt;code&gt;Sig#None&lt;/code&gt;, then the value for &lt;code&gt;ifNone&lt;/code&gt; is returned (notice that it is a &lt;em&gt;lazy parameter&lt;/em&gt; which is only computed if needed)&lt;/li&gt;
+&lt;li&gt;if &lt;code&gt;opt&lt;/code&gt; was a &lt;code&gt;Sig#Some[A]&lt;/code&gt;, then the &lt;code&gt;ifSome&lt;/code&gt; function has access to the contained value to compute its result&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;By the way, an algebra defined through a &lt;code&gt;fold&lt;/code&gt; is called a &lt;a href=&quot;https://en.wikipedia.org/wiki/Catamorphism&quot;&gt;catamorphism&lt;/a&gt;!&lt;/p&gt;
+&lt;p&gt;Finally, we can define a helper to retrieve an instance of &lt;code&gt;OptionOps[Sig]&lt;/code&gt; given a signature, if it is available:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;object OptionOps {
+
+  def apply[Sig &amp;lt;: OptionSig](implicit ops: OptionOps[Sig]): OptionOps[Sig] = ops
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id=&quot;functor&quot;&gt;Functions over `OptionSig`/`OptionOps`&lt;/h2&gt;
+&lt;p&gt;We now want to define new structures that depends on our module. For this, we need something similar to an &lt;a href=&quot;http://caml.inria.fr/pub/docs/oreilly-book/html/book-ora131.html&quot;&gt;ML functor&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;For example, let&amp;rsquo;s define a functor that can construct instances of &lt;code&gt;scalaz.Show&lt;/code&gt; for us:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;import scalaz.Show
+
+class OptionShow[Sig &amp;lt;: OptionSig : OptionOps] {
+
+  def optionShow[A : Show]: Show[Sig#Option[A]] = {
+
+    // retrieving the typeclass instances
+    val showA = Show[A]
+    val ops = OptionOps[Sig]
+
+    val instance = new Show[Sig#Option[A]] {
+      override def shows(opt: Sig#Option[A]): String = ops.fold(opt)(
+        &amp;quot;none&amp;quot;,
+        x =&amp;gt; s&amp;quot;some(${showA.shows(x)})&amp;quot;
+      )
+    }
+
+    instance
+  }
+
+}
+
+object OptionShow {
+
+  implicit def apply[Sig &amp;lt;: OptionSig : OptionOps]: OptionShow[Sig] = new OptionShow[Sig]
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;That is a lot of weird Scala notations that you may not be familiar with. Let&amp;rsquo;s decompose them.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;OptionShow[Sig &amp;lt;: OptionSig : OptionOps]&lt;/code&gt; means that &lt;code&gt;OptionShow&lt;/code&gt; is parameterized by a &lt;code&gt;Sig&lt;/code&gt;, which is required to be a subtype of &lt;code&gt;OptionSig&lt;/code&gt;. Also an instance of &lt;code&gt;OptionOps[Sig]&lt;/code&gt; must be &lt;strong&gt;implicitly&lt;/strong&gt; available.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;def optionShow[A : Show]: Show[Sig#Option[A]]&lt;/code&gt; means that if we can provide an instance of &lt;code&gt;Show[A]&lt;/code&gt;, then &lt;code&gt;optionShow&lt;/code&gt; can construct an instance of &lt;code&gt;Show[Sig#Option[A]]&lt;/code&gt; for us.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;scalaz.Show&lt;/code&gt; is a simple yet powerful typeclass from Scalaz. It simply provides a &lt;code&gt;shows&lt;/code&gt; function for instances of the provided type (here &lt;code&gt;Sig#Option[A]&lt;/code&gt;). The trick here is that unlike &lt;code&gt;Object#toString()&lt;/code&gt;, our &lt;code&gt;Show&lt;/code&gt; instances are &lt;strong&gt;driven by types&lt;/strong&gt;, so we can rely on a &lt;code&gt;Show[A]&lt;/code&gt; being available.&lt;/p&gt;
+&lt;h2 id=&quot;simple-implementation&quot;&gt;A simple implementation&lt;/h2&gt;
+&lt;p&gt;We almost have everything we need in place. We just need to provide an implementation for our module.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;scala.Option&lt;/code&gt; looks like a good candidate for a first implementation, after all that&amp;rsquo;s where we started from:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;trait ScalaOption extends OptionSig {
+
+  type Option[+A] = scala.Option[A]
+  type Some[+A]   = scala.Some[A]
+  type None       = scala.None.type
+
+}
+
+object ScalaOption {
+
+  implicit object ops extends OptionOps[ScalaOption] {
+
+    def some[A](x: A): ScalaOption#Some[A] = scala.Some(x)
+
+    val none: ScalaOption#None = scala.None
+
+    def fold[A, B](opt: ScalaOption#Option[A])(ifNone: =&amp;gt; B, ifSome: A =&amp;gt; B): B =
+      opt match {
+        case scala.None    =&amp;gt; ifNone
+        case scala.Some(x) =&amp;gt; ifSome(x)
+      }
+
+  }
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Nothing fancy here. We just plugged (aka. &lt;a href=&quot;http://docs.scala-lang.org/tutorials/tour/abstract-types.html&quot;&gt;aliased&lt;/a&gt;) our types to the concrete ones. &lt;code&gt;some&lt;/code&gt; and &lt;code&gt;none&lt;/code&gt; respectively delegate to the &lt;code&gt;Some.apply&lt;/code&gt; function and the &lt;code&gt;None&lt;/code&gt; singleton. Finally, the &lt;code&gt;fold&lt;/code&gt; implementation relies on pattern matching.&lt;/p&gt;
+&lt;p&gt;Just note that the typeclass instance for &lt;code&gt;OptionOps[ScalaOption]&lt;/code&gt; is made available in the companion object for &lt;code&gt;ScalaOption&lt;/code&gt; so that &lt;a href=&quot;http://eed3si9n.com/implicit-parameter-precedence-again&quot;&gt;it will &lt;strong&gt;always&lt;/strong&gt; be picked up by Scala when looking for such an implicit&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;program&quot;&gt;Using our option&lt;/h2&gt;
+&lt;p&gt;Finally, we can write a program using our shiny abstractions :-)&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;class Program[Sig &amp;lt;: OptionSig : OptionOps] extends App {
+
+  val ops = OptionOps[Sig]
+  import ops._
+
+  // a little dance to derive our Show instance
+  import scalaz.std.anyVal.intInstance
+  val showOptOptInt = {
+    implicit val showOptInt = OptionShow[Sig].optionShow[Int]
+    OptionShow[Sig].optionShow[Sig#Option[Int]]
+  }
+
+  // scalaz's syntax tricks are awesome
+  import showOptOptInt.showSyntax._
+
+  val optOpt = some(some(42))
+
+  println(&amp;quot;optOpt: &amp;quot; + optOpt.shows)
+
+  val optNone = some(none)
+
+  println(&amp;quot;optNone: &amp;quot; + optNone.shows)
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;And we plug everything together:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;scala&amp;gt; object MainWithScalaOption extends Program[ScalaOption]
+defined object MainWithScalaOption
+
+scala&amp;gt; MainWithScalaOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+&lt;/code&gt;&lt;/pre&gt;
+&lt;h2 id=&quot;custom-implementation&quot;&gt;Our own module implementation&lt;/h2&gt;
+&lt;p&gt;Turns out there are many ways to implement our module.&lt;/p&gt;
+&lt;p&gt;Here is a version of our module where we provide our own classes:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;object MyOption extends OptionSig {
+
+  sealed abstract class Option[+A]
+
+  final case class Some[+A](x: A) extends Option[A]
+
+  sealed abstract class None extends Option[Nothing]
+  case object None extends None
+
+  implicit object ops extends OptionOps[MyOption.type] {
+
+    def some[A](x: A): MyOption.type#Some[A] = Some(x)
+
+    val none: MyOption.type#None = None
+
+    def fold[A, B](opt: MyOption.type#Option[A])(ifNone: =&amp;gt; B, ifSome: A =&amp;gt; B): B =
+      opt match {
+        case None    =&amp;gt; ifNone
+        case Some(x) =&amp;gt; ifSome(x)
+      }
+  }
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Notice that our signature lies in the singleton type &lt;code&gt;MyOption.type&lt;/code&gt;. Scala will have no issue finding the implicit instance in itself because &lt;em&gt;the companion object for a singleton object is itself&lt;/em&gt;!&lt;/p&gt;
+&lt;p&gt;We have introduced an &lt;code&gt;abstract class None&lt;/code&gt; so that we don&amp;rsquo;t need to define a type alias &lt;code&gt;type None = None.type&lt;/code&gt;. It also is interesting to see that Scala doesn&amp;rsquo;t require us to define our classes outside of &lt;code&gt;MyOption&lt;/code&gt; to later alias them: we just do everything at once.&lt;/p&gt;
+&lt;h2 id=&quot;java8-implementation&quot;&gt;Java8-based implementation&lt;/h2&gt;
+&lt;p&gt;Now, let&amp;rsquo;s reuse Java 8 &lt;code&gt;java.util.Optional&lt;/code&gt;!&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;import java.util.Optional
+
+trait Java8Option extends OptionSig {
+
+  type Option[+A] = Optional[_ &amp;lt;: A]
+  type Some[+A]   = Optional[_ &amp;lt;: A]
+  type None       = Optional[Nothing]
+
+}
+
+object Java8Option {
+
+  implicit object ops extends OptionOps[Java8Option] {
+
+    def some[A](x: A): Java8Option#Some[A] = Optional.of(x)
+
+    val none: Java8Option#None = Optional.empty()
+
+    def fold[A, B](opt: Java8Option#Option[A])(ifNone: =&amp;gt; B, ifSome: A =&amp;gt; B): B = {
+      import java.util.function.{ Function =&amp;gt; F, Supplier }
+      def f = new F[A, B] { def apply(a: A): B = ifSome(a) }
+      def supplier = new Supplier[B] { def get(): B = ifNone }
+      opt.map[B](f).orElseGet(supplier)
+    }
+
+  }
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;a href=&quot;http://docs.oracle.com/javase/8/docs/api/java/util/Optional.html&quot;&gt;Java 8&amp;rsquo;s &lt;code&gt;Optional&lt;/code&gt;&lt;/a&gt; has only one class for the two cases, and it was made invariant. Still, we can easily fix that on the Scala side with &lt;code&gt;[_ &amp;lt;: A]&lt;/code&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;any-implementation&quot;&gt;`Any`-based implementation&lt;/h2&gt;
+&lt;p&gt;Remember all the rage wars on &lt;code&gt;Option&lt;/code&gt; vs &lt;code&gt;null&lt;/code&gt;? Or the problem with boxing? Look at that:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;trait NullOption extends OptionSig {
+
+  type Option[+A] = Any
+  type Some[+A]   = Any
+  type None       = Null
+
+}
+
+object NullOption {
+
+  implicit object ops extends OptionOps[NullOption] {
+
+    def some[A](x: A): NullOption#Some[A] = x
+
+    val none: NullOption#None = null
+
+    def fold[A, B](opt: NullOption#Option[A])(ifNone: =&amp;gt; B, ifSome: A =&amp;gt; B): B = {
+      if (opt == null) ifNone
+      else ifSome(opt.asInstanceOf[A])
+    }
+
+  }
+
+}
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Yes, that&amp;rsquo;s right, we are relying on &lt;code&gt;null&lt;/code&gt; for the &lt;code&gt;None&lt;/code&gt; case while the &lt;code&gt;Some&lt;/code&gt; case is the value itself :-)&lt;/p&gt;
+&lt;p&gt;But this is &lt;strong&gt;completely typesafe&lt;/strong&gt; as it never leaks outside of the abstraction. The trick is that &lt;code&gt;Null&lt;/code&gt; is a subtype of &lt;code&gt;Any&lt;/code&gt;. And you can note that that there is &lt;strong&gt;no wrapping involved&lt;/strong&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;final&quot;&gt;Back to our program&lt;/h2&gt;
+&lt;p&gt;We now have four implementations of our option module, all behaving the same way:&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-scala&quot;&gt;scala&amp;gt; object MainWithScalaOption extends Program[ScalaOption]
+defined object MainWithScalaOption
+
+scala&amp;gt; MainWithScalaOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala&amp;gt; object MainWithJava8Option extends Program[Java8Option]
+defined object MainWithScalaOption
+
+scala&amp;gt; MainWithJava8Option.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala&amp;gt; object MainWithMyOption extends Program[MyOption.type]
+defined object MainWithMyOption
+
+scala&amp;gt; MainWithMyOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala&amp;gt; object MainWithNullOption extends Program[NullOption]
+defined object MainWithNullOption
+
+scala&amp;gt; MainWithNullOption.main(Array())
+optOpt: some(some(42))
+optNone: none
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;How cool is that?&lt;/p&gt;
+&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
+&lt;p&gt;In the process, we have shown that typeclasses are a great alternative to the cake pattern when it comes to encode modules in Scala.&lt;/p&gt;
+&lt;p&gt;In practice, some variations are possible. For example, we could have ignored the subtyping relationships altogether. We would have end up with something closer to what happens in OCaml or Haskell as the constructors would both return a &lt;code&gt;OptionSig#Option[A]&lt;/code&gt; instead of a subtype. Also, it would be easy to define some syntax enhancement, so that one could directly write something like &lt;code&gt;myOption.fold(&amp;quot;42&amp;quot;, x =&amp;gt; x.toString)&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Finally, if you are interested in a more complex example using the techniques described here, have a look at &lt;a href=&quot;https://github.com/w3c/banana-rdf&quot;&gt;Banana-RDF&lt;/a&gt; and its &lt;a href=&quot;https://github.com/w3c/banana-rdf/blob/master/rdf/common/src/main/scala/org/w3/banana/RDF.scala&quot;&gt;data model for RDF&lt;/a&gt;. The project provides five different implementations: (1) Jena and (2) Sesame, two competting Java libraries for RDF, (3) a pure Scala implementation that compiles down to JVM bytecode as well as (4) to Javascript through &lt;a href=&quot;http://www.scala-js.org/&quot;&gt;Scala-js&lt;/a&gt;, and finally (5) a pure Javascript implementation bound to &lt;a href=&quot;https://github.com/antoniogarrote/rdfstore-js&quot;&gt;rdfstore-js&lt;/a&gt;, again using Scala-js.&lt;/p&gt;
+</summary>
+  </entry>
+  
+  <entry>
+    <title>Available for hire</title>
+    <link href="https://bertails.org/2015/02/04/for-hire/" rel="alternate"></link>
+    <updated>2015-02-04T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2015-02-04:2015/02/04/for-hire/</id>
+    <summary type="html">&lt;p&gt;Yesterday, the whole engineering team at Pellucid got laid off. &lt;strong&gt;I am now looking for new adventures&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://bertails.org/resume&quot;&gt;My resume is available here on my website&lt;/a&gt;. Please contact me at &lt;a href=&quot;&amp;#109;&amp;#x61;&amp;#105;&amp;#x6c;&amp;#x74;&amp;#x6f;&amp;#x3a;&amp;#97;&amp;#x6c;&amp;#101;&amp;#120;a&amp;#110;&amp;#x64;&amp;#x72;e&amp;#x40;&amp;#98;&amp;#101;&amp;#114;&amp;#x74;&amp;#97;i&amp;#x6c;&amp;#115;&amp;#46;&amp;#x6f;&amp;#114;&amp;#x67;&quot;&gt;&amp;#97;&amp;#108;&amp;#101;&amp;#x78;&amp;#x61;&amp;#x6e;&amp;#100;&amp;#114;&amp;#101;&amp;#x40;&amp;#x62;&amp;#101;&amp;#114;t&amp;#x61;i&amp;#108;&amp;#115;.&amp;#x6f;&amp;#x72;&amp;#x67;&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;I am open to relocation (almost) anywhere in the world, especially for interesting projects relying on Scala &lt;strong&gt;and&lt;/strong&gt; RDF.&lt;/p&gt;
+&lt;h2&gt;why you should hire me&lt;/h2&gt;
+&lt;p&gt;I am a &lt;strong&gt;strong Scala developer&lt;/strong&gt; with many years of experience and a good background in Computer Science. I love learning new skills and I get involved in &lt;a href=&quot;https://github.com/betehess&quot;&gt;Open Source projects&lt;/a&gt;, leading &lt;a href=&quot;https://github.com/w3c/banana-rdf&quot;&gt;banana-rdf&lt;/a&gt;. I frequently give presentations (my next talk is at &lt;a href=&quot;http://event.scaladays.org/scaladays-sanfran-2015#eventid-6548&quot;&gt;Scala Days San Francisco&lt;/a&gt; in just a few weeks) and organize conferences (&lt;a href=&quot;http://nescala.org/&quot;&gt;nescala&lt;/a&gt;).&lt;/p&gt;
+&lt;p&gt;I am a &lt;strong&gt;Linked Data expert&lt;/strong&gt; who worked at the W3C closely with Director Tim Berners-Lee, &lt;a href=&quot;http://www.w3.org/People/Berners-Lee/&quot;&gt;inventor of the World Wide Web&lt;/a&gt;, and gained a thorough and practical knowledge of HTTP and REST APIs. I am also the editor of two major &lt;a href=&quot;http://www.w3.org/TR/tr-editor-all#tr_Alexandre_Bertails&quot;&gt;Web standards: RDB2RDF Direct Mapping and Linked Data Patch Format&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Bonus: I have a lovely French accent :-)&lt;/p&gt;
+&lt;h2&gt;what might make a difference&lt;/h2&gt;
+&lt;p&gt;My first interest is in your product and the technologies you use. I am looking for a position where I will bring my expertise to the table but also where I will be challenged.&lt;/p&gt;
+&lt;p&gt;Then I will look at how you work as a team. I have learned over the years how culture can shape teamwork and I am eager to discuss with you what values and attitudes you encourage and nurture in your workplace.&lt;/p&gt;
+</summary>
+  </entry>
+  
+  <entry>
+    <title>Scala.JS will be for Javascript what Scala is for Java</title>
+    <link href="https://bertails.org/2015/02/01/scala-js-prediction/" rel="alternate"></link>
+    <updated>2015-02-01T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2015-02-01:2015/02/01/scala-js-prediction/</id>
+    <summary type="html">&lt;p&gt;I am writing this article on my way back to New York, after a wonderful &lt;a href=&quot;http://www.nescala.org/&quot;&gt;nescala 2015&lt;/a&gt; in Boston. Definitely a &lt;em&gt;grand cru&lt;/em&gt;. One of the hot topics there was &lt;a href=&quot;http://www.scala-js.org/&quot;&gt;Scala.JS&lt;/a&gt;, which is a technology we have recently started to use in &lt;a href=&quot;https://github.com/w3c/banana-rdf&quot;&gt;banana-rdf&lt;/a&gt;. The various discussions and interactions I had during the conference made me realize this:&lt;/p&gt;
+&lt;blockquote class=&quot;twitter-tweet tw-align-center&quot; lang=&quot;en&quot;&gt;&lt;p&gt;Prediction: Scala.JS will be for Javascript what Scala is for Java/JVM.&lt;/p&gt;&amp;mdash; Alexandre Bertails (@bertails) &lt;a href=&quot;https://twitter.com/bertails/status/561765670019674113&quot;&gt;February 1, 2015&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src=&quot;//platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+&lt;p&gt;As one could have expected when someone makes such a prediction about programming languages, this sparked an &lt;a href=&quot;https://twitter.com/bertails/status/561765670019674113&quot;&gt;interesting thread on Twitter&lt;/a&gt; :-) So let me try to refine what I think the value proposition is for Scala.JS and how I base it on what happened to Scala.&lt;/p&gt;
+&lt;p&gt;I don&amp;rsquo;t know many people who got interested in Scala for its own merits (I am not sure I know any&amp;hellip;). In fact, we hear many voices pointing out its quirks, and they are real, but that misses the point: I don&amp;rsquo;t think that Scala would have become as mainstream as it is today if it was not for Java. Many of us came to Scala from Java because it hit a sweet spot: &lt;strong&gt;1)&lt;/strong&gt; it enables serious &lt;strong&gt;functional programming&lt;/strong&gt; (no, lambdas are not enough&amp;hellip;), &lt;strong&gt;2)&lt;/strong&gt; it gives us a richer and more robust &lt;strong&gt;static type system&lt;/strong&gt;, and &lt;strong&gt;3)&lt;/strong&gt; it remains completely &lt;strong&gt;interoperable with Java&lt;/strong&gt;. About that last point: we could code in Scala as if it were Java and easily interact with existing libraries.&lt;/p&gt;
+&lt;p&gt;My claim is that Scala.JS is doing something similar for Javascript, so let&amp;rsquo;s see how the previous points apply to it.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;1)&lt;/strong&gt; Functional programming has become more prevalent in the IT industry. Developers not only know it exits, they learn its merits and are trained to practice it. Actually, we have seen this trend in Javascript itself and two examples come to my mind: imperative callbacks are being replaced by more composable &lt;a href=&quot;https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise&quot;&gt;Promises&lt;/a&gt; and &lt;a href=&quot;http://facebook.github.io/immutable-js/&quot;&gt;immutable datastructures are now a thing&lt;/a&gt;. Now, despite the fact that Javascript is becoming more functional, I don&amp;rsquo;t think it feels very natural yet for FP practitioners, while Scala is already offering a better solution in that area, both in the language itself and in its standard library.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;2)&lt;/strong&gt; I would claim that functional programming becomes interesting only when you are given a way to speak &lt;strong&gt;statically&lt;/strong&gt; about the things you manipulate. This is why a robust and powerful type system is so important for so many people. &lt;a href=&quot;https://github.com/milessabin/shapeless&quot;&gt;Scala shines in that area&lt;/a&gt;. Look at projects like &lt;a href=&quot;https://github.com/scala-js/scala-js-jquery&quot;&gt;scala-js-jquery&lt;/a&gt; and imagine how easy it becomes to write jQuery code, being guided by the types while having the compiler checking for you that you are using the library correctly.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;3)&lt;/strong&gt; Scala is extremely versatile and captures surprisingly well Javascript&amp;rsquo;s specificities. At the language level, everything you can do in Javascript can be mapped to Scala almost 1-to-1, and Scala&amp;rsquo;s &lt;a href=&quot;http://www.scala-js.org/api/scalajs-library/0.6.0-RC2/#scala.scalajs.js.Dynamic&quot;&gt;dynamic compabilities&lt;/a&gt; even let you interact with the lack of types when working with Javascript libraries. Based on my experience, writing typed facades for existing libraries is straightforward, and the main challenge is actually figuring out how to properly use the underlying libraries because there are no types to guide you.&lt;/p&gt;
+&lt;p&gt;Then there is the &lt;em&gt;obvious stuff&lt;/em&gt;: all of a sudden, plenty of efficient immutable datastructures and libraries from the Scala world become available in the browser; tools like IDEs finally become usable with code completion and type checking; the code can be optimized because the types are statically known; and finally, Scala.JS being just Scala, it comes with a rich ecosystem and community.&lt;/p&gt;
+&lt;blockquote class=&quot;twitter-tweet tw-align-center&quot; data-conversation=&quot;none&quot; lang=&quot;en&quot;&gt;&lt;p&gt;&lt;a href=&quot;https://twitter.com/bertails&quot;&gt;@bertails&lt;/a&gt; Isn&amp;#39;t that what Coffee was supposed to be?&lt;/p&gt;&amp;mdash; Robin Berjon (@robinberjon) &lt;a href=&quot;https://twitter.com/robinberjon/status/561790252671844352&quot;&gt;February 1, 2015&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src=&quot;//platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+&lt;blockquote class=&quot;twitter-tweet tw-align-center&quot; data-conversation=&quot;none&quot; lang=&quot;en&quot;&gt;&lt;p&gt;&lt;a href=&quot;https://twitter.com/bertails&quot;&gt;@bertails&lt;/a&gt; &lt;a href=&quot;https://twitter.com/mandubian&quot;&gt;@mandubian&lt;/a&gt; Clojure(Script) looks to me a better candidate on top of JS than Scala. much more close (loosely typed, functional)&lt;/p&gt;&amp;mdash; Gaëtan Renaudeau (@greweb) &lt;a href=&quot;https://twitter.com/greweb/status/561866804763820032&quot;&gt;February 1, 2015&lt;/a&gt;&lt;/blockquote&gt;
+&lt;script async src=&quot;//platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+&lt;p&gt;Just like with Java, many people will be happy to write plain Javascript for possibly quite a long time. But let&amp;rsquo;s say you disagree with one or more of my points above: you still have &lt;a href=&quot;https://github.com/jashkenas/coffeescript/wiki/list-of-languages-that-compile-to-js&quot;&gt;plenty of contenders to choose from&lt;/a&gt;. But my gut feeling is that there is a huge community out there waiting for a compelling alternative that would bring the triptych functional-programming/static-typing/good-js-interop. Scala.JS just hits that sweet spot and the most exciting times are ahead!&lt;/p&gt;
+</summary>
+  </entry>
+  
+  <entry>
+    <title>Why LD Patch</title>
+    <link href="https://bertails.org/2014/09/20/why-ldpatch/" rel="alternate"></link>
+    <updated>2014-09-20T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2014-09-20:2014/09/20/why-ldpatch/</id>
+    <summary type="html">&lt;p&gt;The &lt;a href=&quot;http://www.w3.org/2012/ldp/&quot;&gt;LDP Working Group&lt;/a&gt; recently published &lt;a href=&quot;http://www.w3.org/TR/ldpatch/&quot;&gt;LD Patch&lt;/a&gt;, &lt;cite&gt;a format for describing changes to apply to Linked Data. It is suitable for use with &lt;a href=&quot;http://tools.ietf.org/html/rfc5789&quot;&gt;HTTP PATCH&lt;/a&gt;, a method to perform partial modifications to Web resources.&lt;/cite&gt;&lt;/p&gt;
+&lt;p&gt;After explaining the need for a PATCH format for Linked Data, I will go through all the &lt;a href=&quot;http://www.w3.org/TR/2014/WD-ldpatch-20140918/#alternative-designs&quot;&gt;other candidate technologies that the group considered&lt;/a&gt;, before explaining the rationale behind LD Patch. It is fair to remind the reader that the group is still eager for feedback, and that &lt;strong&gt;not all the group participants would agree with the views expressed in this post&lt;/strong&gt;.&lt;/p&gt;
+&lt;h2 id=&quot;genesis&quot;&gt;Genesis&lt;/h2&gt;
+&lt;p&gt;Despite strong interest from the group participants in a way to partially update LDP Resources with &lt;a href=&quot;http://tools.ietf.org/html/rfc5789&quot;&gt;HTTP PATCH&lt;/a&gt;, settling on which format to use proved to be more difficult than expected. The group could only agree on standardising the use of PATCH over POST, and decided to wait for concrete proposals while allowing the main specification to reach completion.&lt;/p&gt;
+&lt;p&gt;Work on a PATCH format for LDP got on a limbo for a while, and concretely resumed during the &lt;a href=&quot;http://www.w3.org/2012/ldp/wiki/F2F5#Day_3_-_Thursday_April_17&quot;&gt;5th LDP face-to-face in Boston, MA&lt;/a&gt;, where I presented all the proposals &lt;a href=&quot;https://www.w3.org/2012/ldp/wiki/LDP_PATCH_Proposals&quot;&gt;the group had gathered so far&lt;/a&gt;. I had completed the implementations of both &lt;a href=&quot;http://www.w3.org/People/Eric/&quot;&gt;Eric&lt;/a&gt;&amp;rsquo;s &lt;a href=&quot;http://www.w3.org/2001/sw/wiki/SparqlPatch&quot;&gt;SparqlPatch&lt;/a&gt; and &lt;a href=&quot;http://liris.cnrs.fr/~pchampin/en/&quot;&gt;Pierre-Antoine&lt;/a&gt;&amp;rsquo;s &lt;a href=&quot;https://github.com/pchampin/rdfpatch&quot;&gt;rdfpatch&lt;/a&gt; in &lt;a href=&quot;https://github.com/w3c/banana-rdf&quot;&gt;banana-rdf&lt;/a&gt; at that time. Those two proposals were for me the only two serious challengers.&lt;/p&gt;
+&lt;h2 id=&quot;patch-format&quot;&gt;A PATCH format for LDP&lt;/h2&gt;
+&lt;p&gt;Enough talking. What do we even mean by a &lt;em&gt;PATCH format for LDP&lt;/em&gt;? Consider the following RDF graph:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ GET -S -H 'Accept: text/turtle' http://www.w3.org/People/Berners-Lee/card
+200 OK
+@prefix schema: &amp;lt;http://schema.org/&amp;gt; .
+@prefix profile: &amp;lt;http://ogp.me/ns/profile#&amp;gt; .
+@prefix ex: &amp;lt;http://example.org/vocab#&amp;gt; .
+@prefix rdf: &amp;lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&amp;gt; .
+
+&amp;lt;http://www.w3.org/People/Berners-Lee/card#i&amp;gt; a schema:Person ;
+  schema:alternateName &amp;quot;TimBL&amp;quot; ;
+  profile:first_name &amp;quot;Tim&amp;quot; ;
+  profile:last_name &amp;quot;Berners-Lee&amp;quot; ;
+  schema:workLocation [ schema:name &amp;quot;W3C/MIT&amp;quot; ] ;
+  schema:performerIn _:b1, _:b2 ;
+  ex:preferredLanguages ( &amp;quot;en&amp;quot; &amp;quot;fr&amp;quot; ).
+
+_:b1 schema:name &amp;quot;F2F5 - Linked Data Platform&amp;quot; ;
+  schema:url &amp;lt;https://www.w3.org/2012/ldp/wiki/F2F5&amp;gt; .
+
+_:b2 a schema:Event ;
+  schema:name &amp;quot;TED 2009&amp;quot; ;
+  schema:startDate &amp;quot;2009-02-04&amp;quot; ;
+  schema:url &amp;lt;http://conferences.ted.com/TED2009/&amp;gt; .
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Even if you are not well-versed in &lt;a href=&quot;http://www.w3.org/TR/rdf11-primer/&quot;&gt;RDF&lt;/a&gt; and &lt;a href=&quot;http://www.w3.org/TR/ldp/&quot;&gt;Turtle&lt;/a&gt;, I bet you can still understand that this piece of data is about a person named Tim Berners-Lee, identified by the URI &lt;code&gt;&amp;lt;http://www.w3.org/People/Berners-Lee/card#i&amp;gt;&lt;/code&gt;. Also, TimBL seems to have been a participant in two events, each of them having some data attached to them. Also, do you see how those &lt;code&gt;_:b1&lt;/code&gt; and &lt;code&gt;_:b2&lt;/code&gt; identifiers give you more flexibility than plain JSON? They are &lt;strong&gt;identifiers local to this graph&lt;/strong&gt; and are called &lt;a href=&quot;http://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#section-blank-nodes&quot;&gt;blank nodes&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Other blank nodes get handled by the Turtle syntax, as you can see if you click on the following graph for a full-size visual representation of the data:&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;timbl-card.png&quot;&gt;&lt;img src=&quot;timbl-card.png&quot; alt=&quot;TimBL's card&quot; /&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;As a side note, let me bring your attention on the URIs being used here: they all resolve to actual documents on the Web, including the vocabularies from &lt;a href=&quot;https://schema.org/&quot;&gt;schema.org&lt;/a&gt; and Facebook&amp;rsquo;s &lt;a href=&quot;http://ogp.me/&quot;&gt;Open Graph Protocol&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Now, let&amp;rsquo;s imagine that TimBL wants to add some geo coordinates to the TED event.&lt;/p&gt;
+&lt;h2 id=&quot;simple-patch&quot;&gt;RDF Patch / TurtlePatch&lt;/h2&gt;
+&lt;p&gt;Here is what TimBL could do with RDF Patch:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ cat query.rdfp
+Add _:b2  &amp;lt;http://schema.org/location&amp;gt;  _:loc .
+Add _:loc &amp;lt;http://schema.org/name&amp;gt;      &amp;quot;Long Beach, California&amp;quot; .
+Add _:loc &amp;lt;http://schema.org/geo&amp;gt;       _:geo .
+Add _:geo &amp;lt;http://schema.org/latitude&amp;gt;  &amp;quot;33.7817&amp;quot; .
+Add _:geo &amp;lt;http://schema.org/longitude&amp;gt; &amp;quot;-118.2054&amp;quot; .
+$ cat query.rdfp | PATCH -S -c 'Content-Type: application/rdf-patch' http://www.w3.org/People/Berners-Lee/card
+204 No Content
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Well, this actually does not work.&lt;/p&gt;
+&lt;p&gt;Remember when I said that the blank node &lt;code&gt;_:b2&lt;/code&gt; was a &lt;strong&gt;local identifier&lt;/strong&gt; for the graph? This means that TimBL &lt;strong&gt;cannot refer directly&lt;/strong&gt; to the TED event from outside the document. That would require for the server and the client to agree on a stable identifier for that blank node. That process is called &lt;a href=&quot;http://www.w3.org/wiki/BnodeSkolemization&quot;&gt;skolemization&lt;/a&gt;. It brings a lot of burden on the server to manage those stable identifiers. Also, while the use of blank nodes is mostly transparent in Turtle and &lt;a href=&quot;http://www.w3.org/TR/json-ld/&quot;&gt;JSON-LD&lt;/a&gt; as they are hidden in the syntax, skolemization would break the syntax.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://www.w3.org/2001/sw/wiki/TurtlePatch&quot;&gt;TurtlePatch&lt;/a&gt; has similar expressive power compared to RDF Patch, but it is defined as a subset of SPARQL Update. It also defines &lt;a href=&quot;http://www.w3.org/2001/sw/wiki/TurtlePatch#Handling_Blank_Nodes&quot;&gt;skolemization as being part of the protocol&lt;/a&gt;, where the client can ask for a skolemized version of the graph, which would then be required before PATCHing.&lt;/p&gt;
+&lt;p&gt;Because &lt;a href=&quot;http://www.websemanticsjournal.org/index.php/ps/article/view/365&quot;&gt;blank nodes occur very frequently&lt;/a&gt; and skolemization was a no-go for several participants of the group, the &lt;a href=&quot;http://www.w3.org/2013/meeting/ldp/2014-04-17#line0243&quot;&gt;results&lt;/a&gt; of one of the strawpolls we had on this subject were welcomed with surprise:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;strong&gt;STRAWPOLL:&lt;/strong&gt; I&amp;rsquo;d rather have a solution that (a) doesn&amp;rsquo;t address certain pathological graphs, or (b) requires the server to maintain Skolemization maps&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;The participants were largely in favor of (a), while (b) had basically no support. Knowing that, the group could now focus on alternative proposals, such as SparqlPatch.&lt;/p&gt;
+&lt;h2 id=&quot;sparqlpatch&quot;&gt;SparqlPatch&lt;/h2&gt;
+&lt;p&gt;&lt;a href=&quot;http://www.w3.org/2001/sw/wiki/SparqlPatch&quot;&gt;SparqlPatch&lt;/a&gt; was proposed by &lt;a href=&quot;http://www.w3.org/People/Eric/&quot;&gt;Eric Prud&amp;rsquo;hommeaux&lt;/a&gt;, one of the editors for the &lt;a href=&quot;http://www.w3.org/TR/sparql11-query/&quot;&gt;SPARQL query language&lt;/a&gt;. SparqlPatch is a profile for SPARQL Update, as it is defined as a subset of it: a valid SparqlPatch query will always be a valid SPARQL Update query, sharing the same semantics.&lt;/p&gt;
+&lt;p&gt;Why not full SPARQL Update? Well, SPARQL Update comes with a complex machinery for matching nodes in a graph store. Complexity is never a bad thing when it is justified, which is the case for most SPARQL applications. But it is definitely overkill in the context of LDP, hence Eric&amp;rsquo;s proposal.&lt;/p&gt;
+&lt;p&gt;With SparqlPatch, TimBL would be able to update his profile using the following query:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ cat query.sparql-patch
+PREFIX schema: &amp;lt;http://schema.org/&amp;gt;
+INSERT {
+ ?ted  &amp;lt;http://schema.org/location&amp;gt;  _:loc .
+ _:loc &amp;lt;http://schema.org/name&amp;gt;      &amp;quot;Long Beach, California&amp;quot; .
+ _:loc &amp;lt;http://schema.org/geo&amp;gt;       _:geo .
+ _:geo &amp;lt;http://schema.org/latitude&amp;gt;  &amp;quot;33.7817&amp;quot; .
+ _:geo &amp;lt;http://schema.org/longitude&amp;gt; &amp;quot;-118.2054&amp;quot; .
+}
+WHERE {
+ ?ted schema:url &amp;lt;http://conferences.ted.com/TED2009/&amp;gt;
+}
+$ cat query.sparql-patch | PATCH -S -c 'Content-Type: text/sparqlpatch' http://www.w3.org/People/Berners-Lee/card
+204 No Content
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The &lt;code&gt;WHERE&lt;/code&gt; clause binds the variable &lt;code&gt;?ted&lt;/code&gt; to the node that satisfies the &lt;code&gt;schema:url&lt;/code&gt; constraint, and that variable can now be used to &lt;code&gt;INSERT&lt;/code&gt; new triples.&lt;/p&gt;
+&lt;p&gt;This is definitely better and worth considering, as we now have a way to PATCH graphs with blank nodes. But this is still not perfect&amp;hellip;&lt;/p&gt;
+&lt;p&gt;The runtime complexity for matching nodes in a graph is known to be extremely bad in some cases. While SparqlPatch is better that SPARQL Update in that regard, there are still some issues, which become apparent only when you start implementing and thinking about the runtime semantics. The main data structure in the SPARQL semantics is the &lt;a href=&quot;http://www.w3.org/TR/2013/REC-sparql11-query-20130321/#sparqlSolutions&quot;&gt;Solution Mapping&lt;/a&gt;, which keeps track of which concrete nodes from the graph can be mapped to which variables, applying to each clause in the &lt;code&gt;WHERE&lt;/code&gt; statement. So the &lt;a href=&quot;http://www.w3.org/TR/2013/REC-sparql11-query-20130321/#BGPsparql&quot;&gt;semantics of the Basic Graph Pattern&lt;/a&gt; (ie. all the clauses in the SparqlPatch&amp;rsquo;s &lt;code&gt;WHERE&lt;/code&gt;) involves a lot of costly cartesian products.&lt;/p&gt;
+&lt;p&gt;Also, it would be nice to change the evaluation semantics of the Basic Graph Pattern such that the evaluation order of the clauses is &lt;strong&gt;exactly&lt;/strong&gt; the one from the query. It makes a lot of sense to let the client have some control over the evaluation order in the context of a PATCH.&lt;/p&gt;
+&lt;p&gt;&lt;span id=&quot;confusing-semantics&quot;&gt;SPARQL Update can also be confusing&lt;/span&gt; in that &lt;strong&gt;if a graph pattern doesn&amp;rsquo;t match anything, the query still succeeds with no effect on the graph&lt;/strong&gt;. I have seen many engineers get puzzled by this (perfectly well defined) behaviour, because they were expecting the query to fail: this would happen every time a predicate gets typoed. I am jumping a bit ahead but that is one reason why &lt;strong&gt;LD Patch cannot be compiled down to SPARQL Update while preserving the semantics&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;Finally, SparqlPatch has no support for &lt;code&gt;rdf:list&lt;/code&gt;s. On one hand, SPARQL is heavily triple-focused and has never played very well with &lt;code&gt;rdf:list&lt;/code&gt;. List matching improved in SPARQL 1.1 with &lt;a href=&quot;http://www.w3.org/TR/sparql11-query/#propertypaths&quot;&gt;Property Paths&lt;/a&gt; but their support is not native, in that &lt;strong&gt;common operations such as slice manipulation, update, or even a simple append, need to be encoded in the query&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;On the other hand, lists are a common data structure in all applications. They come with native support in syntaxes like Turtle or JSON-LD. Append is a very common operation and the user should not have to think about the &lt;a href=&quot;http://www.w3.org/2006/Talks/0524-Edinburgh-IH/#(54)&quot;&gt;RDF list encoding&lt;/a&gt; for such simple operations.&lt;/p&gt;
+&lt;p&gt;Limited node matching capabilities and native &lt;code&gt;rdf:list&lt;/code&gt; support are two &lt;strong&gt;features&lt;/strong&gt; of LD Patch.&lt;/p&gt;
+&lt;h2 id=&quot;ld-patch&quot;&gt;LD Patch&lt;/h2&gt;
+&lt;p&gt;LD Patch was originally proposed by &lt;a href=&quot;http://liris.cnrs.fr/~pchampin/en/&quot;&gt;Pierre-Antoine Champin&lt;/a&gt;. The format described in the &lt;a href=&quot;http://www.w3.org/TR/2014/WD-ldpatch-20140918/&quot;&gt;First Public Working Draft&lt;/a&gt; is very close to his original proposal. I became an editor for the specification to make some syntactical enhancements and to make sure that we could provide a &lt;a href=&quot;https://github.com/w3c/banana-rdf/blob/2fb79a94c9cb52201daab4bc8608ea819706b5c1/ldpatch/src/main/scala/Semantics.scala#L13&quot;&gt;clean formal semantics&lt;/a&gt; for it.&lt;/p&gt;
+&lt;p&gt;Pierre-Antoine maintains a Python implementation. On my side, I have a Scala implementation working with &lt;a href=&quot;https://jena.apache.org/&quot;&gt;Jena&lt;/a&gt;, &lt;a href=&quot;http://www.openrdf.org/&quot;&gt;Sesame&lt;/a&gt;, and plain Scala. &lt;a href=&quot;https://deiu.rww.io/profile/card#me&quot;&gt;Andrei Sambra&lt;/a&gt;, the third editor, is working on &lt;a href=&quot;http://golang.org/&quot;&gt;Go&lt;/a&gt; and Javascript implementations.&lt;/p&gt;
+&lt;p&gt;A potential drawback for LD Patch is that some RDF graphs cannot be patched. They are deemed &lt;a href=&quot;http://www.w3.org/TR/ldpatch/#pathological-graph&quot;&gt;pathological&lt;/a&gt; and are &lt;a href=&quot;http://www.websemanticsjournal.org/index.php/ps/article/view/365&quot;&gt;very rare in practice&lt;/a&gt;: Linked Data applications should never be concerned. This may not be true for some SPARQL applications, but this is not our use-case here.&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s see what TimBL&amp;rsquo;s query would look like using LD Patch:&lt;/p&gt;
+&lt;pre&gt;&lt;code&gt;$ cat query.ld-patch
+@prefix schema: &amp;lt;http://schema.org/&amp;gt; .
+
+Bind ?ted &amp;lt;http://conferences.ted.com/TED2009/&amp;gt; / ^schema:url .
+
+Add ?ted schema:location   _:loc .
+Add _:loc schema:name      &amp;quot;Long Beach, California&amp;quot; .
+Add _:loc schema:geo       _:geo .
+Add _:geo schema:latitude  &amp;quot;33.7817&amp;quot; .
+Add _:geo schema:longitude &amp;quot;-118.2054&amp;quot; .
+$ cat query.ld-patch | PATCH -S -c 'Content-Type: text/ldpatch' http://www.w3.org/People/Berners-Lee/card
+204 No Content
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Unlike SparqlPatch, the &lt;code&gt;Bind&lt;/code&gt; statement does not operate on triples. Instead, an &lt;a href=&quot;http://www.w3.org/TR/ldpatch/#path-expression&quot;&gt;LD Path expression&lt;/a&gt; (&lt;code&gt;/ ^schema:url&lt;/code&gt;) is evaluated against a concrete starting node (&lt;code&gt;&amp;lt;http://conferences.ted.com/TED2009/&amp;gt;&lt;/code&gt;). The result node gets bound to a variable (&lt;code&gt;?ted&lt;/code&gt;) which can then be used in the following statements. That is the main difference when compared to SparqlPatch semantics.&lt;/p&gt;
+&lt;p&gt;&lt;span id=&quot;similarities&quot;&gt;Note&lt;/span&gt;: LD Path expressions are very similar to the &lt;a href=&quot;http://tools.ietf.org/html/rfc6901&quot;&gt;JSON Pointers&lt;/a&gt; used in &lt;a href=&quot;http://tools.ietf.org/html/rfc6902&quot;&gt;JSON Patch&lt;/a&gt;, and to the &lt;a href=&quot;http://tools.ietf.org/html/rfc5261#ref-W3C.REC-xpath-19991116&quot;&gt;XPath selectors&lt;/a&gt; used in &lt;a href=&quot;http://tools.ietf.org/html/rfc5261&quot;&gt;XML Patch&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The runtime semantics for LD Path expressions only rely on a node set. The final set must have a unique value to successfuly be bound to the variable, &lt;strong&gt;otherwise it results in an error&lt;/strong&gt;. A path expression is processed from left to right, and can have nested paths for filtering nodes.&lt;/p&gt;
+&lt;p&gt;Given that semantics, you can imagine that it is 1. easy to reason about, 2. &lt;a href=&quot;https://github.com/w3c/banana-rdf/blob/2fb79a94c9cb52201daab4bc8608ea819706b5c1/ldpatch/src/main/scala/Semantics.scala#L158-L192&quot;&gt;easy to implement&lt;/a&gt;, and 3. very efficient. I would even argue that you cannot remove functionalities from the path expressions without throwing away a whole class of interesting RDF graphs that LD Patch is able to patch.&lt;/p&gt;
+&lt;p&gt;Writing a parser for LD Patch proved to be of similar difficulty than for SparqlPatch, as they share most of their respective grammars with Turtle. Most of the code for the engine itself actually lies in the support for &lt;code&gt;rdf:list&lt;/code&gt;, which basically encodes what users would have to do in their queries if they didn&amp;rsquo;t have native support for list manipulations. So this ends up being done in one place, once and for all, and that is indeed a very good thing.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;UpdateList&lt;/code&gt; operation is very similar to &lt;a href=&quot;https://docs.python.org/3/reference/expressions.html#slicings&quot;&gt;how slicing is done in Python&lt;/a&gt;. I invite you to read the &lt;a href=&quot;http://www.w3.org/TR/ldpatch/#update-list-statement&quot;&gt;corresponding section in the specification&lt;/a&gt; for more examples. LD Patch slicing is very intuitive and so far it has met no resistance in the Working Group.&lt;/p&gt;
+&lt;h2 id=&quot;subjectivity&quot;&gt;Subjectivity&lt;/h2&gt;
+&lt;p&gt;It took a very long time before the group was able to publish LD Patch. I still regret that &lt;em&gt;any opportunity&lt;/em&gt; would be taken by few people to challenge the whole technology, often without even providing which requirements they would like to address.&lt;/p&gt;
+&lt;p&gt;For example, the main criticism seems to be about the syntax. Yes, it is a new one, even though 68% of the grammar is shared with Turtle. In particular, it is different from the SPARQL Update syntax. But apparently, it doesn&amp;rsquo;t matter to some folks if the semantics are not the same.&lt;/p&gt;
+&lt;p&gt;I have many, many times given my list of requirements (it is not only mine: those requirements are of course shared by others) on the LDP mailing list but somehow, they were never really challenged, and the arguments about syntax keep coming back. So for the record, here &lt;span id=&quot;requirements&quot;&gt;they&lt;/span&gt; are:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;the context is Linked Data, and especially the Linked Data Platform&lt;/li&gt;
+&lt;li&gt;bare minimum for LDP Resource diff, that is, no high-level features&lt;/li&gt;
+&lt;li&gt;support for blank nodes, but pathological graphs are ok&lt;/li&gt;
+&lt;li&gt;no skolemization&lt;/li&gt;
+&lt;li&gt;first-class citizen &lt;code&gt;rdf:list&lt;/code&gt; manipulations&lt;/li&gt;
+&lt;li&gt;reasonable runtime complexity&lt;/li&gt;
+&lt;li&gt;easy to implement &lt;strong&gt;without&lt;/strong&gt; the need for an existing SPARQL Update implementation&lt;/li&gt;
+&lt;li&gt;not being able to bind a node is a failure&lt;/li&gt;
+&lt;li&gt;being a reasonable alternative for the &lt;a href=&quot;https://web-payments.org/specs/source/identity-credentials/#h2_accessing-the-identity&quot;&gt;JSON-LD folks using JSON Patch&lt;/a&gt;, because they don&amp;rsquo;t have better&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;If you want to make counter proposals, please make sure that those requirements are addressed. Also, you should accept the fact that if you have a different set of requirements, then LD Patch is probably not what you want. Finally, if you think that the above requirements are &lt;strong&gt;wrong in the context of LDP&lt;/strong&gt;, then you should make an official complaint to the group explaining your reasoning.&lt;/p&gt;
+&lt;p&gt;I would like to emphasize that &lt;strong&gt;relying on an existing syntax (such as SPARQL) was never a requirement for me&lt;/strong&gt;. While reusing bits of SPARQL Update in LD Patch whenever it makes sense is reasonable, it should be done sparingly. For example, &lt;a href=&quot;http://lists.w3.org/Archives/Public/public-ldp-wg/2014Jul/thread.html#msg81&quot;&gt;I argued on the LDP mailing list&lt;/a&gt; that shared syntax with different (runtime) semantics could break some user expectations.&lt;/p&gt;
+&lt;h2 id=&quot;faq&quot;&gt;Frequently Asked Questions&lt;/h2&gt;
+&lt;p&gt;&lt;span id=&quot;dbooth-questions&quot;&gt;Thanks to &lt;a href=&quot;http://dbooth.org/&quot;&gt;David Booth&lt;/a&gt;&lt;/span&gt; for &lt;a href=&quot;http://lists.w3.org/Archives/Public/public-ldp/2014Sep/0014.html&quot;&gt;providing me with well formulated questions and concerns&lt;/a&gt;. Here are some answers. They only complete the arguments in the other sections of this post.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Are there any concerns about inventing a new syntax?&lt;/em&gt; What if SPARQL, or a profile of it, could &lt;strong&gt;not&lt;/strong&gt; address &lt;a href=&quot;#requirements&quot;&gt;all the requirements&lt;/a&gt;? What if a subset of the syntax was no longer aligned with the superset semantics?&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Isn&amp;rsquo;t this yet another syntax similar to SPARQL, which ends up confusing newcomers?&lt;/em&gt; Of course there are similar: exactly 68% of the grammar rules for LD Patch are directly coming from Turtle, and SPARQL made a similar choice.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Would using a single language decrease development and maintenance costs?&lt;/em&gt; I would like to see actual evidence of that claim. Some people actually have &lt;a href=&quot;http://martinfowler.com/bliki/OneLanguage.html&quot;&gt;a more nuanced opinion&lt;/a&gt; on that subject, and I tend to agree as I find myself using the language/framework that I find the most fit to a given job.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Can implementers simply plug in an existing general-purpose SPARQL engine to get a new system up and running quickly?&lt;/em&gt; Not so easy. You still need to reject the valid SPARQL Update queries that are not valid LD Patch queries. And you can be sure that I will make sure that the test suite has tests for that :-) And because I have done it, I can claim that unlike full SPARQL, LD Patch is quick and easy to implement.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Would implementers have the option of supporting additional SPARQL 1.1 Update operations?&lt;/em&gt; There is definitely a use-case for querying data in LDP Containers using SPARQL, or using a &lt;a href=&quot;http://blog.pellucid.com/post/95282190715/exposing-resources-in-datomic-using-linked-data&quot;&gt;more ad-hoc query language with support for ordering, filtering, and aggregation&lt;/a&gt;. And it is true that bulk updating could be addressed with SPARQL Update. But those use-cases are different from PATCH.&lt;/p&gt;
+&lt;h2 id=&quot;next-steps&quot;&gt;Next steps&lt;/h2&gt;
+&lt;p&gt;The First Public Working Draft just got published. As expected, the document is getting reviewed by experts, who have already started to provide feedback to the group.&lt;/p&gt;
+&lt;p&gt;In the meantime, the editors are working on completing the semantics section of the document. A proposed approach was to provide a translation from LD Patch to SPARQL Update. While this is definitely useful for people with a SPARQL background, &lt;a href=&quot;#confusing-semantics&quot;&gt;this cannot be used as a formal semantics&lt;/a&gt;. We are trying to find a good trade-off between the usual tooling from formal semantics theory, and something that could be read by people without such a theoretical background.&lt;/p&gt;
+&lt;p&gt;And finally, after the specification gets completed, we will focus on providing a test suite. The plan is to make it part of the &lt;a href=&quot;https://github.com/w3c/ldp-testsuite&quot;&gt;LDP one&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;That&amp;rsquo;s all folks.   (and thanks Andrei for reviewing drafts for this post)&lt;/p&gt;
+</summary>
+  </entry>
+  
+  <entry>
+    <title>Finally my own blog</title>
+    <link href="https://bertails.org/2014/09/16/finally-my-own-blog/" rel="alternate"></link>
+    <updated>2014-09-16T00:00:00-05:00</updated>
+    <author>
+      <name>Alexandre Bertails</name>
+    </author>
+    <id>tag:bertails.org,2014-09-16:2014/09/16/finally-my-own-blog/</id>
+    <summary type="html">&lt;p&gt;I have finally found the time and the motivation to put together my own blog \o/ I had actually planned to do so for about 10 years, basically since I own &lt;code&gt;bertails.org&lt;/code&gt;&amp;hellip; It is not completely ready yet but I prefer to release it now and work out the issues later. Otherwise it would never happen.&lt;/p&gt;
+&lt;p&gt;Sooo, how does this work? I wanted something as easy to use as possible. So I have settled on &lt;a href=&quot;http://docs.getpelican.com/&quot;&gt;Pelican&lt;/a&gt;. At least for now. As I don&amp;rsquo;t want to pollute my environment with Python dependencies, I am using &lt;a href=&quot;https://www.docker.com/&quot;&gt;Docker&lt;/a&gt; to generate the static version of this website. The &lt;a href=&quot;https://github.com/betehess/my-pelican/&quot;&gt;project&lt;/a&gt; started as a clone of &lt;a href=&quot;https://github.com/jderuere/docker-pelican&quot;&gt;https://github.com/jderuere/docker-pelican&lt;/a&gt; but I quickly rewrote everything, including the &lt;a href=&quot;https://github.com/betehess/my-pelican/blob/master/Dockerfile&quot;&gt;Dockerfile&lt;/a&gt;. I run Pelican within the container but against the mounted &lt;code&gt;website&lt;/code&gt; directory, and I propagate my user from the host to avoid right issues (Docker uses root by default). So I do something like&lt;/p&gt;
+&lt;pre&gt;&lt;code class=&quot;language-bash&quot;&gt;docker run --name=pelican -d -v `pwd`/website:/srv/pelican-website \
+  -p 8000:8000 betehess/pelican
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The theme is directly based on &lt;a href=&quot;http://paulrouget.com/&quot;&gt;Paul Rouget&amp;rsquo;s website&lt;/a&gt;, with few adaptations. Most important ones are the fixed font (&lt;a href=&quot;https://www.google.com/fonts/specimen/Ubuntu+Mono&quot;&gt;Ubuntu Mono&lt;/a&gt;) and the greenish colour for the links. I only use 2 templates from Pelican: &lt;code&gt;index.html&lt;/code&gt; and &lt;code&gt;article.html&lt;/code&gt;. The blog now becomes the main entry point for &lt;a href=&quot;http://bertails.org&quot;&gt;http://bertails.org&lt;/a&gt;. The previous index page has moved to &lt;a href=&quot;http://bertails.org/alex&quot;&gt;http://bertails.org/alex&lt;/a&gt; as I intend to use &lt;a href=&quot;http://bertails.org/alex#me&quot;&gt;http://bertails.org/alex#me&lt;/a&gt; as my &lt;a href=&quot;http://www.w3.org/wiki/WebID&quot;&gt;WebID&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;My mugshot &lt;a href=&quot;https://www.flickr.com/photos/amyvdh/5837280596/&quot;&gt;was taken by&lt;/a&gt; my friend and ex &lt;a href=&quot;http://www.w3.org&quot;&gt;W3C&lt;/a&gt; colleague &lt;a href=&quot;https://twitter.com/amyvdh&quot;&gt;Amy van der Hiel&lt;/a&gt;. There are very few pictures of me on the Web :-) I cannot remember where the font icons are coming from though :-/&lt;/p&gt;
+&lt;p&gt;There are no comments at the moment. The reason is that I couldn&amp;rsquo;t find anything that I liked. I have the markup and the CSS ready though. So it should land here in just a few weeks.&lt;/p&gt;
+&lt;p&gt;What will you find on this blog? Mainly articles about &lt;a href=&quot;http://www.scala-lang.org/&quot;&gt;Scala&lt;/a&gt; and &lt;a href=&quot;http://en.wikipedia.org/wiki/Linked_data&quot;&gt;Linked Data&lt;/a&gt;. I will maintain RSS feeds for those subjects when the time comes.&lt;/p&gt;
+&lt;p&gt;Stay tuned!&lt;/p&gt;
+</summary>
+  </entry>
+  
+</feed>

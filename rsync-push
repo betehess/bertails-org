@@ -1,0 +1,20 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo "usage: $0 file-to-upsync"
+    exit 1
+fi
+
+if [ ! -e "$1" ]; then
+    echo "error: file $1 does not exist"
+    exit 2
+fi
+
+cd $(dirname "$0")
+
+rsync -avzv \
+      -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+      --progress \
+      --include "$1" \
+      --exclude "*" \
+      . betehess@bertails.org:~/www

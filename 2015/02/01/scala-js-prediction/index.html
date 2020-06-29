@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Scala.JS will be for Javascript what Scala is for Java</title>
+  <meta name="description" content="bertails.org blog linked data rdf scala">
+  <meta name="author" content="Alexandre Bertails">
+  <meta name="viewport" content="width=device-width, initial-scale=1.2">
+  <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400italic,700,700italic" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/asset/sunburst.css">
+  <link rel="stylesheet" href="/asset/main.css" />
+
+  <script type="application/ld+json">
+{
+  "@id" : "https://bertails.org/2015/02/01/scala-js-prediction/",
+  "@type" : "http://schema.org/BlogPosting",
+  "datePublished" : "2015-02-01",
+  "headline" : "Scala.JS will be for Javascript what Scala is for Java",
+  "@context" : {
+    "datePublished" : {
+      "@id" : "http://schema.org/datePublished"
+    },
+    "headline" : {
+      "@id" : "http://schema.org/headline"
+    }
+  }
+}
+
+  </script>
+
+</head>
+<body>
+  <aside>
+    <a href="/"><img id="avatar" src="/image/alex.jpg" alt="Home"></a>
+    <p>
+      I am Alexandre Bertails: <a href="/alex#me">WebID</a>, <a href="/resume/">resume</a>. I do Scala and Linked Data. Welcome to my blog (<a href="/feed/all.xml">feed</a>).
+    </p>
+    <div class="icons">
+      <a href="mailto:alexandre@bertails.org"><img alt="Send Alex an email" src="/image/contact.svg"></a>
+      <a href="https://twitter.com/bertails"><img alt="Follow betehess on Twitter" src="/image/twitter.svg"></a>
+      <a href="https://github.com/betehess"><img alt="Follow betehess on Github" src="/image/github.svg"></a>
+    </div>
+  </aside>
+  
+<article>
+<h1>Scala.JS will be for Javascript what Scala is for Java</h1>
+<p>I am writing this article on my way back to New York, after a wonderful <a href="http://www.nescala.org/">nescala 2015</a> in Boston. Definitely a <em>grand cru</em>. One of the hot topics there was <a href="http://www.scala-js.org/">Scala.JS</a>, which is a technology we have recently started to use in <a href="https://github.com/w3c/banana-rdf">banana-rdf</a>. The various discussions and interactions I had during the conference made me realize this:</p>
+<blockquote class="twitter-tweet tw-align-center" lang="en"><p>Prediction: Scala.JS will be for Javascript what Scala is for Java/JVM.</p>&mdash; Alexandre Bertails (@bertails) <a href="https://twitter.com/bertails/status/561765670019674113">February 1, 2015</a></blockquote>
+<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>As one could have expected when someone makes such a prediction about programming languages, this sparked an <a href="https://twitter.com/bertails/status/561765670019674113">interesting thread on Twitter</a> :-) So let me try to refine what I think the value proposition is for Scala.JS and how I base it on what happened to Scala.</p>
+<p>I don&rsquo;t know many people who got interested in Scala for its own merits (I am not sure I know any&hellip;). In fact, we hear many voices pointing out its quirks, and they are real, but that misses the point: I don&rsquo;t think that Scala would have become as mainstream as it is today if it was not for Java. Many of us came to Scala from Java because it hit a sweet spot: <strong>1)</strong> it enables serious <strong>functional programming</strong> (no, lambdas are not enough&hellip;), <strong>2)</strong> it gives us a richer and more robust <strong>static type system</strong>, and <strong>3)</strong> it remains completely <strong>interoperable with Java</strong>. About that last point: we could code in Scala as if it were Java and easily interact with existing libraries.</p>
+<p>My claim is that Scala.JS is doing something similar for Javascript, so let&rsquo;s see how the previous points apply to it.</p>
+<p><strong>1)</strong> Functional programming has become more prevalent in the IT industry. Developers not only know it exits, they learn its merits and are trained to practice it. Actually, we have seen this trend in Javascript itself and two examples come to my mind: imperative callbacks are being replaced by more composable <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">Promises</a> and <a href="http://facebook.github.io/immutable-js/">immutable datastructures are now a thing</a>. Now, despite the fact that Javascript is becoming more functional, I don&rsquo;t think it feels very natural yet for FP practitioners, while Scala is already offering a better solution in that area, both in the language itself and in its standard library.</p>
+<p><strong>2)</strong> I would claim that functional programming becomes interesting only when you are given a way to speak <strong>statically</strong> about the things you manipulate. This is why a robust and powerful type system is so important for so many people. <a href="https://github.com/milessabin/shapeless">Scala shines in that area</a>. Look at projects like <a href="https://github.com/scala-js/scala-js-jquery">scala-js-jquery</a> and imagine how easy it becomes to write jQuery code, being guided by the types while having the compiler checking for you that you are using the library correctly.</p>
+<p><strong>3)</strong> Scala is extremely versatile and captures surprisingly well Javascript&rsquo;s specificities. At the language level, everything you can do in Javascript can be mapped to Scala almost 1-to-1, and Scala&rsquo;s <a href="http://www.scala-js.org/api/scalajs-library/0.6.0-RC2/#scala.scalajs.js.Dynamic">dynamic compabilities</a> even let you interact with the lack of types when working with Javascript libraries. Based on my experience, writing typed facades for existing libraries is straightforward, and the main challenge is actually figuring out how to properly use the underlying libraries because there are no types to guide you.</p>
+<p>Then there is the <em>obvious stuff</em>: all of a sudden, plenty of efficient immutable datastructures and libraries from the Scala world become available in the browser; tools like IDEs finally become usable with code completion and type checking; the code can be optimized because the types are statically known; and finally, Scala.JS being just Scala, it comes with a rich ecosystem and community.</p>
+<blockquote class="twitter-tweet tw-align-center" data-conversation="none" lang="en"><p><a href="https://twitter.com/bertails">@bertails</a> Isn&#39;t that what Coffee was supposed to be?</p>&mdash; Robin Berjon (@robinberjon) <a href="https://twitter.com/robinberjon/status/561790252671844352">February 1, 2015</a></blockquote>
+<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+<blockquote class="twitter-tweet tw-align-center" data-conversation="none" lang="en"><p><a href="https://twitter.com/bertails">@bertails</a> <a href="https://twitter.com/mandubian">@mandubian</a> Clojure(Script) looks to me a better candidate on top of JS than Scala. much more close (loosely typed, functional)</p>&mdash; Gaëtan Renaudeau (@greweb) <a href="https://twitter.com/greweb/status/561866804763820032">February 1, 2015</a></blockquote>
+<script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>Just like with Java, many people will be happy to write plain Javascript for possibly quite a long time. But let&rsquo;s say you disagree with one or more of my points above: you still have <a href="https://github.com/jashkenas/coffeescript/wiki/list-of-languages-that-compile-to-js">plenty of contenders to choose from</a>. But my gut feeling is that there is a huge community out there waiting for a compelling alternative that would bring the triptych functional-programming/static-typing/good-js-interop. Scala.JS just hits that sweet spot and the most exciting times are ahead!</p>
+
+</article>
+<script src="/asset/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</body>
+</html>
+

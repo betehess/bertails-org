@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Abstract Algebraic Data Type</title>
+  <meta name="description" content="bertails.org blog linked data rdf scala">
+  <meta name="author" content="Alexandre Bertails">
+  <meta name="viewport" content="width=device-width, initial-scale=1.2">
+  <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400italic,700,700italic" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/asset/sunburst.css">
+  <link rel="stylesheet" href="/asset/main.css" />
+
+  <script type="application/ld+json">
+{
+  "@id" : "https://bertails.org/2015/02/15/abstract-algebraic-data-type/",
+  "@type" : "http://schema.org/BlogPosting",
+  "datePublished" : "2015-02-15",
+  "headline" : "Abstract Algebraic Data Type",
+  "@context" : {
+    "datePublished" : {
+      "@id" : "http://schema.org/datePublished"
+    },
+    "headline" : {
+      "@id" : "http://schema.org/headline"
+    }
+  }
+}
+
+  </script>
+
+</head>
+<body>
+  <aside>
+    <a href="/"><img id="avatar" src="/image/alex.jpg" alt="Home"></a>
+    <p>
+      I am Alexandre Bertails: <a href="/alex#me">WebID</a>, <a href="/resume/">resume</a>. I do Scala and Linked Data. Welcome to my blog (<a href="/feed/all.xml">feed</a>).
+    </p>
+    <div class="icons">
+      <a href="mailto:alexandre@bertails.org"><img alt="Send Alex an email" src="/image/contact.svg"></a>
+      <a href="https://twitter.com/bertails"><img alt="Follow betehess on Twitter" src="/image/twitter.svg"></a>
+      <a href="https://github.com/betehess"><img alt="Follow betehess on Github" src="/image/github.svg"></a>
+    </div>
+  </aside>
+  
+<article>
+<h1>Abstract Algebraic Data Type</h1>
+<p>Scala&rsquo;s sealed class hierarchies (aka. <a href="https://en.wikipedia.org/wiki/Algebraic_data_type">Algebraic Data Types</a>) are for sure one of its most praised features. Yet, they have one downside: they don&rsquo;t let us abstract over the type hierarchy as <code>trait</code>s and <code>class</code>es are all about constructing new <strong>concrete</strong> types.</p>
+<p>In this post, we will explore how we can relax this constraint so that we can get an abstracted version of <code>scala.Option</code>, which would allow us to switch implementations.</p>
+<h2 id="deconstructing">Deconstructing Scala's algebraic data types</h2>
+<p>As a reminder, here is <a href="https://github.com/scala/scala/blob/2.11.x/src/library/scala/Option.scala">how Scala&rsquo;s <code>Option</code>s are implemented</a>:</p>
+<pre><code class="language-scala">sealed abstract class Option[+A]
+final case class Some[+A](x: A) extends Option[A]
+case object None extends Option[Nothing]
+</code></pre>
+<p>Here is the corresponding scaladoc diagram:</p>
+<p><a href="scala-option.png"><img src="scala-option.png" alt="scala.Option" /></a></p>
+<p>There are quite a few things happening here: * we need to be able to speak about the <strong>types and their relationships</strong>; * then we need a way to <strong>inject</strong> values in those types; * finally we need a way to inspect the values for those types to <strong>extract</strong> their content.</p>
+<h2 id="type-and-relationships">On types and subtyping</h2>
+<p>There is a <strong>subtyping relationship</strong> between <code>Some</code>/<code>None</code> and <code>Option</code>.</p>
+<p>Actually, <code>None</code> itself is not a type but a value, whose type is <code>None.type</code>, a subtype of <code>Option</code>. Also, <code>Option</code> and <code>Some</code> are not technically types, but <strong>type constructors</strong> (aka. <a href="https://stackoverflow.com/questions/6246719/what-is-a-higher-kinded-type-in-scala">higher kinded types</a>): we need to provide a type <code>A</code> to produce an <code>Option[A]</code> type.</p>
+<p>Finally, <code>Option</code> is covariant in its parameterized type <code>A</code>, so that <code>Option[Nothing]</code> is a subtype of <code>Option[A]</code> because <a href="https://stackoverflow.com/questions/1728541/if-the-nothing-type-is-at-the-bottom-of-the-class-hierarchy-why-can-i-not-call"><code>Nothing</code> is a subtype of any type</a>.</p>
+<h2 id="injectors">On injectors</h2>
+<p>We have two (here somewhat equivalent) ways of <strong>injecting</strong> a value of type <code>A</code> into a <code>Some[A]</code>:</p>
+<ul>
+<li>we can do that through the class constructor, eg. <code>new Some(42)</code></li>
+<li>or more natually through <code>Some.apply</code>, eg. <code>Some(42)</code></li>
+</ul>
+<p><code>None</code> is a singleton object, therefore it is the <em>only inhabitant</em> of <code>None.type</code>.</p>
+<h2 id="extractors">On extractors</h2>
+<p>Given an <code>Option[A]</code>, we can reason by cases using <strong>pattern matching</strong>.</p>
+<p>This is achieved through the <a href="http://docs.scala-lang.org/tutorials/tour/extractor-objects.html"><code>unapply</code> extractor methods</a> on the <code>Option</code> companion object. And because <code>Option</code> is sealed, the type checker will be able to check for exhaustiveness.</p>
+<p>Finally, given a <code>Some[A]</code>, we can retrieve its content through the <code>x</code> field accessor, or again using the <code>Some.unapply</code> extractor.</p>
+<h2 id="abstracting-over-types">Abstracting over types</h2>
+<p>My colleague <a href="https://twitter.com/dwhjames">Dan</a> explored <a href="http://io.pellucid.com/blog/scalas-modular-roots">how to encode modules in Scala</a> in a previous blog article. If you haven&rsquo;t read it yet, I warmly recommend you to do it, even if not strictly necessary for understanding what is going on here. Also here, I will choose yet another encoding using a <a href="https://en.wikipedia.org/wiki/Type_class">typeclass</a> approach.</p>
+<p>First, let&rsquo;s define the entire type hierarchy in one place:</p>
+<pre><code class="language-scala">import scala.language.higherKinds
+
+trait OptionSig {
+  type Option[+_]
+  type Some[+A] &lt;: Option[A]
+  type None &lt;: Option[Nothing]
+}
+</code></pre>
+<p>We used the <code>Sig</code> suffix as if <code>OptionSig</code> was an <a href="http://caml.inria.fr/pub/docs/oreilly-book/html/book-ora131.html">ML module signature</a> but this is <strong>not the complete signature</strong> as there are no function defined in this trait.</p>
+<p>This is just a convenient way to gather several types into a single one, a bit like a record, but for types. Given an <code>OptionSig</code>, we can now speak about one of the types it contains using a type projection, eg. <code>OptionSig#Option[A]</code>.</p>
+<h2 id="abstracting-over-operations">Abstracting over operations</h2>
+<p>Now that we have a type hierarchy, we can complete our signature with the operations that must be defined over it:</p>
+<pre><code class="language-scala">abstract class OptionOps[Sig &lt;: OptionSig] {
+  def some[A](x: A): Sig#Some[A]
+  def none: Sig#None
+  def fold[A, B](opt: Sig#Option[A])(ifNone: =&gt; B, ifSome: A =&gt; B): B
+}
+</code></pre>
+<p>You might be wondering why we need this <code>Sig</code> as a subtype for <code>OptionSig</code>, as this is usually not needed for typeclasses. It&rsquo;s because we need to be able to project its inner types.</p>
+<p><code>some[A]</code> is the injector for <code>Sig#Some[A]</code>. <code>none</code> doesn&rsquo;t take any parameter, so it really acts as a singleton value for <code>Sig#None</code>.</p>
+<p><code>fold[A, B]</code> is the essence of the <code>Sig#Option[A]</code> type: given the two passed functions, it can react on the actual type for <code>opt</code> at runtime:</p>
+<ul>
+<li>if <code>opt</code> was a <code>Sig#None</code>, then the value for <code>ifNone</code> is returned (notice that it is a <em>lazy parameter</em> which is only computed if needed)</li>
+<li>if <code>opt</code> was a <code>Sig#Some[A]</code>, then the <code>ifSome</code> function has access to the contained value to compute its result</li>
+</ul>
+<p>By the way, an algebra defined through a <code>fold</code> is called a <a href="https://en.wikipedia.org/wiki/Catamorphism">catamorphism</a>!</p>
+<p>Finally, we can define a helper to retrieve an instance of <code>OptionOps[Sig]</code> given a signature, if it is available:</p>
+<pre><code class="language-scala">object OptionOps {
+
+  def apply[Sig &lt;: OptionSig](implicit ops: OptionOps[Sig]): OptionOps[Sig] = ops
+
+}
+</code></pre>
+<h2 id="functor">Functions over `OptionSig`/`OptionOps`</h2>
+<p>We now want to define new structures that depends on our module. For this, we need something similar to an <a href="http://caml.inria.fr/pub/docs/oreilly-book/html/book-ora131.html">ML functor</a>.</p>
+<p>For example, let&rsquo;s define a functor that can construct instances of <code>scalaz.Show</code> for us:</p>
+<pre><code class="language-scala">import scalaz.Show
+
+class OptionShow[Sig &lt;: OptionSig : OptionOps] {
+
+  def optionShow[A : Show]: Show[Sig#Option[A]] = {
+
+    // retrieving the typeclass instances
+    val showA = Show[A]
+    val ops = OptionOps[Sig]
+
+    val instance = new Show[Sig#Option[A]] {
+      override def shows(opt: Sig#Option[A]): String = ops.fold(opt)(
+        &quot;none&quot;,
+        x =&gt; s&quot;some(${showA.shows(x)})&quot;
+      )
+    }
+
+    instance
+  }
+
+}
+
+object OptionShow {
+
+  implicit def apply[Sig &lt;: OptionSig : OptionOps]: OptionShow[Sig] = new OptionShow[Sig]
+
+}
+</code></pre>
+<p>That is a lot of weird Scala notations that you may not be familiar with. Let&rsquo;s decompose them.</p>
+<p><code>OptionShow[Sig &lt;: OptionSig : OptionOps]</code> means that <code>OptionShow</code> is parameterized by a <code>Sig</code>, which is required to be a subtype of <code>OptionSig</code>. Also an instance of <code>OptionOps[Sig]</code> must be <strong>implicitly</strong> available.</p>
+<p><code>def optionShow[A : Show]: Show[Sig#Option[A]]</code> means that if we can provide an instance of <code>Show[A]</code>, then <code>optionShow</code> can construct an instance of <code>Show[Sig#Option[A]]</code> for us.</p>
+<p><code>scalaz.Show</code> is a simple yet powerful typeclass from Scalaz. It simply provides a <code>shows</code> function for instances of the provided type (here <code>Sig#Option[A]</code>). The trick here is that unlike <code>Object#toString()</code>, our <code>Show</code> instances are <strong>driven by types</strong>, so we can rely on a <code>Show[A]</code> being available.</p>
+<h2 id="simple-implementation">A simple implementation</h2>
+<p>We almost have everything we need in place. We just need to provide an implementation for our module.</p>
+<p><code>scala.Option</code> looks like a good candidate for a first implementation, after all that&rsquo;s where we started from:</p>
+<pre><code class="language-scala">trait ScalaOption extends OptionSig {
+
+  type Option[+A] = scala.Option[A]
+  type Some[+A]   = scala.Some[A]
+  type None       = scala.None.type
+
+}
+
+object ScalaOption {
+
+  implicit object ops extends OptionOps[ScalaOption] {
+
+    def some[A](x: A): ScalaOption#Some[A] = scala.Some(x)
+
+    val none: ScalaOption#None = scala.None
+
+    def fold[A, B](opt: ScalaOption#Option[A])(ifNone: =&gt; B, ifSome: A =&gt; B): B =
+      opt match {
+        case scala.None    =&gt; ifNone
+        case scala.Some(x) =&gt; ifSome(x)
+      }
+
+  }
+
+}
+</code></pre>
+<p>Nothing fancy here. We just plugged (aka. <a href="http://docs.scala-lang.org/tutorials/tour/abstract-types.html">aliased</a>) our types to the concrete ones. <code>some</code> and <code>none</code> respectively delegate to the <code>Some.apply</code> function and the <code>None</code> singleton. Finally, the <code>fold</code> implementation relies on pattern matching.</p>
+<p>Just note that the typeclass instance for <code>OptionOps[ScalaOption]</code> is made available in the companion object for <code>ScalaOption</code> so that <a href="http://eed3si9n.com/implicit-parameter-precedence-again">it will <strong>always</strong> be picked up by Scala when looking for such an implicit</a>.</p>
+<h2 id="program">Using our option</h2>
+<p>Finally, we can write a program using our shiny abstractions :-)</p>
+<pre><code class="language-scala">class Program[Sig &lt;: OptionSig : OptionOps] extends App {
+
+  val ops = OptionOps[Sig]
+  import ops._
+
+  // a little dance to derive our Show instance
+  import scalaz.std.anyVal.intInstance
+  val showOptOptInt = {
+    implicit val showOptInt = OptionShow[Sig].optionShow[Int]
+    OptionShow[Sig].optionShow[Sig#Option[Int]]
+  }
+
+  // scalaz's syntax tricks are awesome
+  import showOptOptInt.showSyntax._
+
+  val optOpt = some(some(42))
+
+  println(&quot;optOpt: &quot; + optOpt.shows)
+
+  val optNone = some(none)
+
+  println(&quot;optNone: &quot; + optNone.shows)
+
+}
+</code></pre>
+<p>And we plug everything together:</p>
+<pre><code class="language-scala">scala&gt; object MainWithScalaOption extends Program[ScalaOption]
+defined object MainWithScalaOption
+
+scala&gt; MainWithScalaOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+</code></pre>
+<h2 id="custom-implementation">Our own module implementation</h2>
+<p>Turns out there are many ways to implement our module.</p>
+<p>Here is a version of our module where we provide our own classes:</p>
+<pre><code class="language-scala">object MyOption extends OptionSig {
+
+  sealed abstract class Option[+A]
+
+  final case class Some[+A](x: A) extends Option[A]
+
+  sealed abstract class None extends Option[Nothing]
+  case object None extends None
+
+  implicit object ops extends OptionOps[MyOption.type] {
+
+    def some[A](x: A): MyOption.type#Some[A] = Some(x)
+
+    val none: MyOption.type#None = None
+
+    def fold[A, B](opt: MyOption.type#Option[A])(ifNone: =&gt; B, ifSome: A =&gt; B): B =
+      opt match {
+        case None    =&gt; ifNone
+        case Some(x) =&gt; ifSome(x)
+      }
+  }
+
+}
+</code></pre>
+<p>Notice that our signature lies in the singleton type <code>MyOption.type</code>. Scala will have no issue finding the implicit instance in itself because <em>the companion object for a singleton object is itself</em>!</p>
+<p>We have introduced an <code>abstract class None</code> so that we don&rsquo;t need to define a type alias <code>type None = None.type</code>. It also is interesting to see that Scala doesn&rsquo;t require us to define our classes outside of <code>MyOption</code> to later alias them: we just do everything at once.</p>
+<h2 id="java8-implementation">Java8-based implementation</h2>
+<p>Now, let&rsquo;s reuse Java 8 <code>java.util.Optional</code>!</p>
+<pre><code class="language-scala">import java.util.Optional
+
+trait Java8Option extends OptionSig {
+
+  type Option[+A] = Optional[_ &lt;: A]
+  type Some[+A]   = Optional[_ &lt;: A]
+  type None       = Optional[Nothing]
+
+}
+
+object Java8Option {
+
+  implicit object ops extends OptionOps[Java8Option] {
+
+    def some[A](x: A): Java8Option#Some[A] = Optional.of(x)
+
+    val none: Java8Option#None = Optional.empty()
+
+    def fold[A, B](opt: Java8Option#Option[A])(ifNone: =&gt; B, ifSome: A =&gt; B): B = {
+      import java.util.function.{ Function =&gt; F, Supplier }
+      def f = new F[A, B] { def apply(a: A): B = ifSome(a) }
+      def supplier = new Supplier[B] { def get(): B = ifNone }
+      opt.map[B](f).orElseGet(supplier)
+    }
+
+  }
+
+}
+</code></pre>
+<p><a href="http://docs.oracle.com/javase/8/docs/api/java/util/Optional.html">Java 8&rsquo;s <code>Optional</code></a> has only one class for the two cases, and it was made invariant. Still, we can easily fix that on the Scala side with <code>[_ &lt;: A]</code>.</p>
+<h2 id="any-implementation">`Any`-based implementation</h2>
+<p>Remember all the rage wars on <code>Option</code> vs <code>null</code>? Or the problem with boxing? Look at that:</p>
+<pre><code class="language-scala">trait NullOption extends OptionSig {
+
+  type Option[+A] = Any
+  type Some[+A]   = Any
+  type None       = Null
+
+}
+
+object NullOption {
+
+  implicit object ops extends OptionOps[NullOption] {
+
+    def some[A](x: A): NullOption#Some[A] = x
+
+    val none: NullOption#None = null
+
+    def fold[A, B](opt: NullOption#Option[A])(ifNone: =&gt; B, ifSome: A =&gt; B): B = {
+      if (opt == null) ifNone
+      else ifSome(opt.asInstanceOf[A])
+    }
+
+  }
+
+}
+</code></pre>
+<p>Yes, that&rsquo;s right, we are relying on <code>null</code> for the <code>None</code> case while the <code>Some</code> case is the value itself :-)</p>
+<p>But this is <strong>completely typesafe</strong> as it never leaks outside of the abstraction. The trick is that <code>Null</code> is a subtype of <code>Any</code>. And you can note that that there is <strong>no wrapping involved</strong>.</p>
+<h2 id="final">Back to our program</h2>
+<p>We now have four implementations of our option module, all behaving the same way:</p>
+<pre><code class="language-scala">scala&gt; object MainWithScalaOption extends Program[ScalaOption]
+defined object MainWithScalaOption
+
+scala&gt; MainWithScalaOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala&gt; object MainWithJava8Option extends Program[Java8Option]
+defined object MainWithScalaOption
+
+scala&gt; MainWithJava8Option.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala&gt; object MainWithMyOption extends Program[MyOption.type]
+defined object MainWithMyOption
+
+scala&gt; MainWithMyOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala&gt; object MainWithNullOption extends Program[NullOption]
+defined object MainWithNullOption
+
+scala&gt; MainWithNullOption.main(Array())
+optOpt: some(some(42))
+optNone: none
+</code></pre>
+<p>How cool is that?</p>
+<h2 id="summary">Summary</h2>
+<p>In the process, we have shown that typeclasses are a great alternative to the cake pattern when it comes to encode modules in Scala.</p>
+<p>In practice, some variations are possible. For example, we could have ignored the subtyping relationships altogether. We would have end up with something closer to what happens in OCaml or Haskell as the constructors would both return a <code>OptionSig#Option[A]</code> instead of a subtype. Also, it would be easy to define some syntax enhancement, so that one could directly write something like <code>myOption.fold(&quot;42&quot;, x =&gt; x.toString)</code>.</p>
+<p>Finally, if you are interested in a more complex example using the techniques described here, have a look at <a href="https://github.com/w3c/banana-rdf">Banana-RDF</a> and its <a href="https://github.com/w3c/banana-rdf/blob/master/rdf/common/src/main/scala/org/w3/banana/RDF.scala">data model for RDF</a>. The project provides five different implementations: (1) Jena and (2) Sesame, two competting Java libraries for RDF, (3) a pure Scala implementation that compiles down to JVM bytecode as well as (4) to Javascript through <a href="http://www.scala-js.org/">Scala-js</a>, and finally (5) a pure Javascript implementation bound to <a href="https://github.com/antoniogarrote/rdfstore-js">rdfstore-js</a>, again using Scala-js.</p>
+
+</article>
+<script src="/asset/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</body>
+</html>
+

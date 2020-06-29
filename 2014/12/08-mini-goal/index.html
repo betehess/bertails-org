@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Long-Term Architecture - mini-goal</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+     @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+     @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+     @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+     
+     body { font-family: 'Droid Serif'; }
+     h1, h2, h3 {
+       font-family: 'Yanone Kaffeesatz';
+       font-weight: normal;
+     }
+     .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+
+     .img100 img {
+       width: 100%;
+       display: block;
+       margin:0 auto;
+     }
+
+     .img90 img {
+       width: 80%;
+       display: block;
+       margin:0 auto;
+     }
+
+     .img80 img {
+       width: 80%;
+       display: block;
+       margin:0 auto;
+     }
+
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Long-Term Architecture
+
+## mini-goal
+
+---
+
+## links
+
+* [mini-goal](https://docs.google.com/a/pellucid.com/document/d/1IEjAvarML3Oab1IKntdwQ_Z8wAvs7fYDPcGKOk_VSII/edit)
+* [input](https://docs.google.com/a/pellucid.com/spreadsheets/d/1Z2X4E8xApAfHhYKun6-dO93syuiUrEpWspPBdr-qrFk/edit#gid=0)
+
+---
+
+## raw frame
+
+```
+<> a f:Frame ;
+   f:columns ( <#company> <#date> <#fq> <#sales> ) .
+
+<#company> a f:Column ;
+           f:value "Company" ;
+           f:cells ( <#c11> <#c12> ) .
+
+<#c11> a f:Cell ; f:index 0 ; f:value "PrivateCompanyA" .
+<#c12> a f:Cell ; f:index 1 ; f:value "PrivateCompanyA" .
+
+<#date> a f:Column ;
+        f:value "Date" ;
+        f:cells ( <#c21> <#c22> ) .
+
+<#c21> a f:Cell ; f:index 0 ; f:value "3/31/2014" .
+<#c22> a f:Cell ; f:index 1 ; f:value "6/30/2014" .
+
+<#fq> a f:Column ;
+      f:value "FQ" ;
+      f:cells ( <#c31> <#c32> ) .
+
+<#c31> a f:Cell ; f:index 0 ; f:value "1" .
+<#c32> a f:Cell ; f:index 1 ; f:value "2" .
+```
+
+
+
+---
+
+## reconciliation
+
+* reconciliation (i.e. uniquely map entities)
+  * [OpenRefine](http://openrefine.org/), ex Google Refine
+
+* Vectors for Word Representation
+  * [Word2Vec](https://code.google.com/p/word2vec/)
+  * [GloVe](http://nlp.stanford.edu/projects/glove/)
+
+* Knowledge Organization System (c.f. [SKOS](http://www.w3.org/TR/skos-primer/))
+  * `skos:Concept` == *things of significance*
+  * `dct:subject` == [the topic of a resource](http://dublincore.org/documents/2012/06/14/dcmi-terms/?v=terms#subject)
+
+
+
+---
+
+## frame after reconciliation
+
+```
+<> a f:Frame ;
+   f:columns ( <#company> <#date> <#fq> <#sales> ) .
+
+<#company> a f:Column ;
+           dct:subject ont:Company ;
+           f:value "Company" ;
+           f:cells ( <#c11> <#c12> ) .
+
+<#c11> a f:Cell ; f:index 0 ; f:item <#companyA> .
+<#c12> a f:Cell ; f:index 1 ; f:item <#companyA> .
+
+<#companyA> a ont:Company ;
+            ont:name "PrivateCompanyA" .
+```
+
+* identifies columns' `skos:Concept`
+  * the taxonomy tells us how to find concepts (SKOS hierarchy)
+  * implies a type for the cells
+
+
+---
+
+## companies: defining new entities [1/2]
+
+* maps rows to entities
+* maps columns to predicates
+* can be `skos:Concept`-driven e.g. `ont:Company`
+
+```
+<> a f:Frame ;
+   f:columns ( <#id> <#name> <#address> <#default-currency> ) .
+
+<#id> a f:Column ; dct:subject ont:id ;
+      f:value "ID" ; f:cells ( <#c1> ) .
+
+<#c1> a f:Cell ; f:index 0 ; f:item "PrivateCompanyB" .
+
+<#name> a f:Column ; dct:subject dc:name ;
+        f:value "Name" ; f:cells ( <#c2> ) .
+
+<#c2> a f:Cell ; f:index 0 ; f:item "Private Company B" .
+
+<#address> a f:Column ; dct:subject schema:Place ;
+           f:value "Address" ; f:cells ( <#c3> ) .
+
+<#c3> a f:Cell ; f:index 0 ; f:item <http://dbpedia.org/resource/Seoul> .
+
+<#address> a f:Column ; dct:subject dbpedia:currency ;
+           f:value "Default Currency" ; f:cells ( <#c4> ) .
+
+<#c4> a f:Cell ; f:index 0 ; f:item <http://dbpedia.org/resource/South_Korean_won> .
+```
+
+---
+
+## companies: defining new entities [2/2]
+
+```
+<#row1> a ont:Company ;
+        ont:id "PrivateCompanyB" ;
+        dc:name "Private Company B" ;
+        schema:Place <http://dbpedia.org/resource/Seoul> ;
+        dbpedia:currency <http://dbpedia.org/resource/South_Korean_won> .
+```
+
+
+
+---
+
+## dates
+
+```
+<#date> a f:Column ;
+        dct:subject ont:Date ;
+        f:value "Date" ;
+        f:cells ( <#c21> <#c22> ) .
+
+<#c21> a f:Cell ; f:index 0 ; f:item "2014-31-03"^^xsd:date .
+<#c22> a f:Cell ; f:index 1 ; f:item "2014-30-06"^^xsd:date .
+```
+
+
+
+
+---
+
+## time period
+
+```
+<#fq> a f:Column ;
+      dct:subject ont:Financial-Quarter ;
+      f:value "FQ" ;
+      f:cells ( <#c31> <#c32> ) .
+
+<#c31> a f:Cell ; f:index 0 ; f:item ont:us-fq1 .
+<#c32> a f:Cell ; f:index 1 ; f:item ont:us-fq2 .
+```
+
+### cf. owl-time
+
+```
+$ GET https://data.pellucid.org/ns/ontology/us-fq1
+
+<>
+  a owl:Class ;
+  rdfs:subClassOf :DateTimeDescription ;
+  rdfs:subClassOf
+  [ a owl:Restriction ;
+    owl:onProperty :unitType
+    owl:hasValue :unitMonth
+  ] ;
+```
+
+
+
+
+
+---
+
+## metrics
+
+```
+<#sales> a f:Column ;
+           dct:subject ont:Metrics ;
+           f:value "Sales" ;
+           f:cells ( <#c41> <#c42> ... ) .
+
+<#c41> a f:Cell ; f:index 0 ;
+       f:item [ a ont:Sales ; f:value 1000000 ; f:unit ont:USD ] .
+```
+
+* Q: grouping columns?
+* Q: default values?
+
+
+---
+
+## data
+
+* global knowledge base *vs* user knowledge base
+  * e.g. https://data.pellucid.com/users/vamsi/1234
+
+* sharing means sharing a document
+
+* if users can upload *any kind of frame data*, we need a very flexible system.
+  * but predefined ontologies
+
+* database topology
+  * how much data in uploaded CSVs?
+  * can be fragmented per user/group
+  * stability?
+
+* datasets:
+  * Morgan Stanley's [Global Industry Classification Standard](http://www.mscibarra.com/products/indices/gics/)
+
+
+---
+
+## proposed next steps
+
+* learning how to identify concepts
+  * properly answers the "things of significance"
+  * "namespace"?
+
+* more in depth scenario
+  * override
+  * access control / sharing
+  * interaction user/global knowledge base
+  * recombining frames (after enhancement)
+
+
+
+    </textarea>
+    <script src="remark-latest.min.js">
+    </script>
+    <script>
+     var slideshow = remark.create();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Why LD Patch</title>
+  <meta name="description" content="bertails.org blog linked data rdf scala">
+  <meta name="author" content="Alexandre Bertails">
+  <meta name="viewport" content="width=device-width, initial-scale=1.2">
+  <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400italic,700,700italic" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/asset/sunburst.css">
+  <link rel="stylesheet" href="/asset/main.css" />
+
+  <script type="application/ld+json">
+{
+  "@id" : "https://bertails.org/2014/09/20/why-ldpatch/",
+  "@type" : "http://schema.org/BlogPosting",
+  "datePublished" : "2014-09-20",
+  "headline" : "Why LD Patch",
+  "@context" : {
+    "datePublished" : {
+      "@id" : "http://schema.org/datePublished"
+    },
+    "headline" : {
+      "@id" : "http://schema.org/headline"
+    }
+  }
+}
+
+  </script>
+
+</head>
+<body>
+  <aside>
+    <a href="/"><img id="avatar" src="/image/alex.jpg" alt="Home"></a>
+    <p>
+      I am Alexandre Bertails: <a href="/alex#me">WebID</a>, <a href="/resume/">resume</a>. I do Scala and Linked Data. Welcome to my blog (<a href="/feed/all.xml">feed</a>).
+    </p>
+    <div class="icons">
+      <a href="mailto:alexandre@bertails.org"><img alt="Send Alex an email" src="/image/contact.svg"></a>
+      <a href="https://twitter.com/bertails"><img alt="Follow betehess on Twitter" src="/image/twitter.svg"></a>
+      <a href="https://github.com/betehess"><img alt="Follow betehess on Github" src="/image/github.svg"></a>
+    </div>
+  </aside>
+  
+<article>
+<h1>Why LD Patch</h1>
+<p>The <a href="http://www.w3.org/2012/ldp/">LDP Working Group</a> recently published <a href="http://www.w3.org/TR/ldpatch/">LD Patch</a>, <cite>a format for describing changes to apply to Linked Data. It is suitable for use with <a href="http://tools.ietf.org/html/rfc5789">HTTP PATCH</a>, a method to perform partial modifications to Web resources.</cite></p>
+<p>After explaining the need for a PATCH format for Linked Data, I will go through all the <a href="http://www.w3.org/TR/2014/WD-ldpatch-20140918/#alternative-designs">other candidate technologies that the group considered</a>, before explaining the rationale behind LD Patch. It is fair to remind the reader that the group is still eager for feedback, and that <strong>not all the group participants would agree with the views expressed in this post</strong>.</p>
+<h2 id="genesis">Genesis</h2>
+<p>Despite strong interest from the group participants in a way to partially update LDP Resources with <a href="http://tools.ietf.org/html/rfc5789">HTTP PATCH</a>, settling on which format to use proved to be more difficult than expected. The group could only agree on standardising the use of PATCH over POST, and decided to wait for concrete proposals while allowing the main specification to reach completion.</p>
+<p>Work on a PATCH format for LDP got on a limbo for a while, and concretely resumed during the <a href="http://www.w3.org/2012/ldp/wiki/F2F5#Day_3_-_Thursday_April_17">5th LDP face-to-face in Boston, MA</a>, where I presented all the proposals <a href="https://www.w3.org/2012/ldp/wiki/LDP_PATCH_Proposals">the group had gathered so far</a>. I had completed the implementations of both <a href="http://www.w3.org/People/Eric/">Eric</a>&rsquo;s <a href="http://www.w3.org/2001/sw/wiki/SparqlPatch">SparqlPatch</a> and <a href="http://liris.cnrs.fr/~pchampin/en/">Pierre-Antoine</a>&rsquo;s <a href="https://github.com/pchampin/rdfpatch">rdfpatch</a> in <a href="https://github.com/w3c/banana-rdf">banana-rdf</a> at that time. Those two proposals were for me the only two serious challengers.</p>
+<h2 id="patch-format">A PATCH format for LDP</h2>
+<p>Enough talking. What do we even mean by a <em>PATCH format for LDP</em>? Consider the following RDF graph:</p>
+<pre><code>$ GET -S -H 'Accept: text/turtle' http://www.w3.org/People/Berners-Lee/card
+200 OK
+@prefix schema: &lt;http://schema.org/&gt; .
+@prefix profile: &lt;http://ogp.me/ns/profile#&gt; .
+@prefix ex: &lt;http://example.org/vocab#&gt; .
+@prefix rdf: &lt;http://www.w3.org/1999/02/22-rdf-syntax-ns#&gt; .
+
+&lt;http://www.w3.org/People/Berners-Lee/card#i&gt; a schema:Person ;
+  schema:alternateName &quot;TimBL&quot; ;
+  profile:first_name &quot;Tim&quot; ;
+  profile:last_name &quot;Berners-Lee&quot; ;
+  schema:workLocation [ schema:name &quot;W3C/MIT&quot; ] ;
+  schema:performerIn _:b1, _:b2 ;
+  ex:preferredLanguages ( &quot;en&quot; &quot;fr&quot; ).
+
+_:b1 schema:name &quot;F2F5 - Linked Data Platform&quot; ;
+  schema:url &lt;https://www.w3.org/2012/ldp/wiki/F2F5&gt; .
+
+_:b2 a schema:Event ;
+  schema:name &quot;TED 2009&quot; ;
+  schema:startDate &quot;2009-02-04&quot; ;
+  schema:url &lt;http://conferences.ted.com/TED2009/&gt; .
+</code></pre>
+<p>Even if you are not well-versed in <a href="http://www.w3.org/TR/rdf11-primer/">RDF</a> and <a href="http://www.w3.org/TR/ldp/">Turtle</a>, I bet you can still understand that this piece of data is about a person named Tim Berners-Lee, identified by the URI <code>&lt;http://www.w3.org/People/Berners-Lee/card#i&gt;</code>. Also, TimBL seems to have been a participant in two events, each of them having some data attached to them. Also, do you see how those <code>_:b1</code> and <code>_:b2</code> identifiers give you more flexibility than plain JSON? They are <strong>identifiers local to this graph</strong> and are called <a href="http://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#section-blank-nodes">blank nodes</a>.</p>
+<p>Other blank nodes get handled by the Turtle syntax, as you can see if you click on the following graph for a full-size visual representation of the data:</p>
+<p><a href="timbl-card.png"><img src="timbl-card.png" alt="TimBL's card" /></a></p>
+<p>As a side note, let me bring your attention on the URIs being used here: they all resolve to actual documents on the Web, including the vocabularies from <a href="https://schema.org/">schema.org</a> and Facebook&rsquo;s <a href="http://ogp.me/">Open Graph Protocol</a>.</p>
+<p>Now, let&rsquo;s imagine that TimBL wants to add some geo coordinates to the TED event.</p>
+<h2 id="simple-patch">RDF Patch / TurtlePatch</h2>
+<p>Here is what TimBL could do with RDF Patch:</p>
+<pre><code>$ cat query.rdfp
+Add _:b2  &lt;http://schema.org/location&gt;  _:loc .
+Add _:loc &lt;http://schema.org/name&gt;      &quot;Long Beach, California&quot; .
+Add _:loc &lt;http://schema.org/geo&gt;       _:geo .
+Add _:geo &lt;http://schema.org/latitude&gt;  &quot;33.7817&quot; .
+Add _:geo &lt;http://schema.org/longitude&gt; &quot;-118.2054&quot; .
+$ cat query.rdfp | PATCH -S -c 'Content-Type: application/rdf-patch' http://www.w3.org/People/Berners-Lee/card
+204 No Content
+</code></pre>
+<p>Well, this actually does not work.</p>
+<p>Remember when I said that the blank node <code>_:b2</code> was a <strong>local identifier</strong> for the graph? This means that TimBL <strong>cannot refer directly</strong> to the TED event from outside the document. That would require for the server and the client to agree on a stable identifier for that blank node. That process is called <a href="http://www.w3.org/wiki/BnodeSkolemization">skolemization</a>. It brings a lot of burden on the server to manage those stable identifiers. Also, while the use of blank nodes is mostly transparent in Turtle and <a href="http://www.w3.org/TR/json-ld/">JSON-LD</a> as they are hidden in the syntax, skolemization would break the syntax.</p>
+<p><a href="http://www.w3.org/2001/sw/wiki/TurtlePatch">TurtlePatch</a> has similar expressive power compared to RDF Patch, but it is defined as a subset of SPARQL Update. It also defines <a href="http://www.w3.org/2001/sw/wiki/TurtlePatch#Handling_Blank_Nodes">skolemization as being part of the protocol</a>, where the client can ask for a skolemized version of the graph, which would then be required before PATCHing.</p>
+<p>Because <a href="http://www.websemanticsjournal.org/index.php/ps/article/view/365">blank nodes occur very frequently</a> and skolemization was a no-go for several participants of the group, the <a href="http://www.w3.org/2013/meeting/ldp/2014-04-17#line0243">results</a> of one of the strawpolls we had on this subject were welcomed with surprise:</p>
+<blockquote>
+<p><strong>STRAWPOLL:</strong> I&rsquo;d rather have a solution that (a) doesn&rsquo;t address certain pathological graphs, or (b) requires the server to maintain Skolemization maps</p>
+</blockquote>
+<p>The participants were largely in favor of (a), while (b) had basically no support. Knowing that, the group could now focus on alternative proposals, such as SparqlPatch.</p>
+<h2 id="sparqlpatch">SparqlPatch</h2>
+<p><a href="http://www.w3.org/2001/sw/wiki/SparqlPatch">SparqlPatch</a> was proposed by <a href="http://www.w3.org/People/Eric/">Eric Prud&rsquo;hommeaux</a>, one of the editors for the <a href="http://www.w3.org/TR/sparql11-query/">SPARQL query language</a>. SparqlPatch is a profile for SPARQL Update, as it is defined as a subset of it: a valid SparqlPatch query will always be a valid SPARQL Update query, sharing the same semantics.</p>
+<p>Why not full SPARQL Update? Well, SPARQL Update comes with a complex machinery for matching nodes in a graph store. Complexity is never a bad thing when it is justified, which is the case for most SPARQL applications. But it is definitely overkill in the context of LDP, hence Eric&rsquo;s proposal.</p>
+<p>With SparqlPatch, TimBL would be able to update his profile using the following query:</p>
+<pre><code>$ cat query.sparql-patch
+PREFIX schema: &lt;http://schema.org/&gt;
+INSERT {
+ ?ted  &lt;http://schema.org/location&gt;  _:loc .
+ _:loc &lt;http://schema.org/name&gt;      &quot;Long Beach, California&quot; .
+ _:loc &lt;http://schema.org/geo&gt;       _:geo .
+ _:geo &lt;http://schema.org/latitude&gt;  &quot;33.7817&quot; .
+ _:geo &lt;http://schema.org/longitude&gt; &quot;-118.2054&quot; .
+}
+WHERE {
+ ?ted schema:url &lt;http://conferences.ted.com/TED2009/&gt;
+}
+$ cat query.sparql-patch | PATCH -S -c 'Content-Type: text/sparqlpatch' http://www.w3.org/People/Berners-Lee/card
+204 No Content
+</code></pre>
+<p>The <code>WHERE</code> clause binds the variable <code>?ted</code> to the node that satisfies the <code>schema:url</code> constraint, and that variable can now be used to <code>INSERT</code> new triples.</p>
+<p>This is definitely better and worth considering, as we now have a way to PATCH graphs with blank nodes. But this is still not perfect&hellip;</p>
+<p>The runtime complexity for matching nodes in a graph is known to be extremely bad in some cases. While SparqlPatch is better that SPARQL Update in that regard, there are still some issues, which become apparent only when you start implementing and thinking about the runtime semantics. The main data structure in the SPARQL semantics is the <a href="http://www.w3.org/TR/2013/REC-sparql11-query-20130321/#sparqlSolutions">Solution Mapping</a>, which keeps track of which concrete nodes from the graph can be mapped to which variables, applying to each clause in the <code>WHERE</code> statement. So the <a href="http://www.w3.org/TR/2013/REC-sparql11-query-20130321/#BGPsparql">semantics of the Basic Graph Pattern</a> (ie. all the clauses in the SparqlPatch&rsquo;s <code>WHERE</code>) involves a lot of costly cartesian products.</p>
+<p>Also, it would be nice to change the evaluation semantics of the Basic Graph Pattern such that the evaluation order of the clauses is <strong>exactly</strong> the one from the query. It makes a lot of sense to let the client have some control over the evaluation order in the context of a PATCH.</p>
+<p><span id="confusing-semantics">SPARQL Update can also be confusing</span> in that <strong>if a graph pattern doesn&rsquo;t match anything, the query still succeeds with no effect on the graph</strong>. I have seen many engineers get puzzled by this (perfectly well defined) behaviour, because they were expecting the query to fail: this would happen every time a predicate gets typoed. I am jumping a bit ahead but that is one reason why <strong>LD Patch cannot be compiled down to SPARQL Update while preserving the semantics</strong>.</p>
+<p>Finally, SparqlPatch has no support for <code>rdf:list</code>s. On one hand, SPARQL is heavily triple-focused and has never played very well with <code>rdf:list</code>. List matching improved in SPARQL 1.1 with <a href="http://www.w3.org/TR/sparql11-query/#propertypaths">Property Paths</a> but their support is not native, in that <strong>common operations such as slice manipulation, update, or even a simple append, need to be encoded in the query</strong>.</p>
+<p>On the other hand, lists are a common data structure in all applications. They come with native support in syntaxes like Turtle or JSON-LD. Append is a very common operation and the user should not have to think about the <a href="http://www.w3.org/2006/Talks/0524-Edinburgh-IH/#(54)">RDF list encoding</a> for such simple operations.</p>
+<p>Limited node matching capabilities and native <code>rdf:list</code> support are two <strong>features</strong> of LD Patch.</p>
+<h2 id="ld-patch">LD Patch</h2>
+<p>LD Patch was originally proposed by <a href="http://liris.cnrs.fr/~pchampin/en/">Pierre-Antoine Champin</a>. The format described in the <a href="http://www.w3.org/TR/2014/WD-ldpatch-20140918/">First Public Working Draft</a> is very close to his original proposal. I became an editor for the specification to make some syntactical enhancements and to make sure that we could provide a <a href="https://github.com/w3c/banana-rdf/blob/2fb79a94c9cb52201daab4bc8608ea819706b5c1/ldpatch/src/main/scala/Semantics.scala#L13">clean formal semantics</a> for it.</p>
+<p>Pierre-Antoine maintains a Python implementation. On my side, I have a Scala implementation working with <a href="https://jena.apache.org/">Jena</a>, <a href="http://www.openrdf.org/">Sesame</a>, and plain Scala. <a href="https://deiu.rww.io/profile/card#me">Andrei Sambra</a>, the third editor, is working on <a href="http://golang.org/">Go</a> and Javascript implementations.</p>
+<p>A potential drawback for LD Patch is that some RDF graphs cannot be patched. They are deemed <a href="http://www.w3.org/TR/ldpatch/#pathological-graph">pathological</a> and are <a href="http://www.websemanticsjournal.org/index.php/ps/article/view/365">very rare in practice</a>: Linked Data applications should never be concerned. This may not be true for some SPARQL applications, but this is not our use-case here.</p>
+<p>Let&rsquo;s see what TimBL&rsquo;s query would look like using LD Patch:</p>
+<pre><code>$ cat query.ld-patch
+@prefix schema: &lt;http://schema.org/&gt; .
+
+Bind ?ted &lt;http://conferences.ted.com/TED2009/&gt; / ^schema:url .
+
+Add ?ted schema:location   _:loc .
+Add _:loc schema:name      &quot;Long Beach, California&quot; .
+Add _:loc schema:geo       _:geo .
+Add _:geo schema:latitude  &quot;33.7817&quot; .
+Add _:geo schema:longitude &quot;-118.2054&quot; .
+$ cat query.ld-patch | PATCH -S -c 'Content-Type: text/ldpatch' http://www.w3.org/People/Berners-Lee/card
+204 No Content
+</code></pre>
+<p>Unlike SparqlPatch, the <code>Bind</code> statement does not operate on triples. Instead, an <a href="http://www.w3.org/TR/ldpatch/#path-expression">LD Path expression</a> (<code>/ ^schema:url</code>) is evaluated against a concrete starting node (<code>&lt;http://conferences.ted.com/TED2009/&gt;</code>). The result node gets bound to a variable (<code>?ted</code>) which can then be used in the following statements. That is the main difference when compared to SparqlPatch semantics.</p>
+<p><span id="similarities">Note</span>: LD Path expressions are very similar to the <a href="http://tools.ietf.org/html/rfc6901">JSON Pointers</a> used in <a href="http://tools.ietf.org/html/rfc6902">JSON Patch</a>, and to the <a href="http://tools.ietf.org/html/rfc5261#ref-W3C.REC-xpath-19991116">XPath selectors</a> used in <a href="http://tools.ietf.org/html/rfc5261">XML Patch</a>.</p>
+<p>The runtime semantics for LD Path expressions only rely on a node set. The final set must have a unique value to successfuly be bound to the variable, <strong>otherwise it results in an error</strong>. A path expression is processed from left to right, and can have nested paths for filtering nodes.</p>
+<p>Given that semantics, you can imagine that it is 1. easy to reason about, 2. <a href="https://github.com/w3c/banana-rdf/blob/2fb79a94c9cb52201daab4bc8608ea819706b5c1/ldpatch/src/main/scala/Semantics.scala#L158-L192">easy to implement</a>, and 3. very efficient. I would even argue that you cannot remove functionalities from the path expressions without throwing away a whole class of interesting RDF graphs that LD Patch is able to patch.</p>
+<p>Writing a parser for LD Patch proved to be of similar difficulty than for SparqlPatch, as they share most of their respective grammars with Turtle. Most of the code for the engine itself actually lies in the support for <code>rdf:list</code>, which basically encodes what users would have to do in their queries if they didn&rsquo;t have native support for list manipulations. So this ends up being done in one place, once and for all, and that is indeed a very good thing.</p>
+<p>The <code>UpdateList</code> operation is very similar to <a href="https://docs.python.org/3/reference/expressions.html#slicings">how slicing is done in Python</a>. I invite you to read the <a href="http://www.w3.org/TR/ldpatch/#update-list-statement">corresponding section in the specification</a> for more examples. LD Patch slicing is very intuitive and so far it has met no resistance in the Working Group.</p>
+<h2 id="subjectivity">Subjectivity</h2>
+<p>It took a very long time before the group was able to publish LD Patch. I still regret that <em>any opportunity</em> would be taken by few people to challenge the whole technology, often without even providing which requirements they would like to address.</p>
+<p>For example, the main criticism seems to be about the syntax. Yes, it is a new one, even though 68% of the grammar is shared with Turtle. In particular, it is different from the SPARQL Update syntax. But apparently, it doesn&rsquo;t matter to some folks if the semantics are not the same.</p>
+<p>I have many, many times given my list of requirements (it is not only mine: those requirements are of course shared by others) on the LDP mailing list but somehow, they were never really challenged, and the arguments about syntax keep coming back. So for the record, here <span id="requirements">they</span> are:</p>
+<ul>
+<li>the context is Linked Data, and especially the Linked Data Platform</li>
+<li>bare minimum for LDP Resource diff, that is, no high-level features</li>
+<li>support for blank nodes, but pathological graphs are ok</li>
+<li>no skolemization</li>
+<li>first-class citizen <code>rdf:list</code> manipulations</li>
+<li>reasonable runtime complexity</li>
+<li>easy to implement <strong>without</strong> the need for an existing SPARQL Update implementation</li>
+<li>not being able to bind a node is a failure</li>
+<li>being a reasonable alternative for the <a href="https://web-payments.org/specs/source/identity-credentials/#h2_accessing-the-identity">JSON-LD folks using JSON Patch</a>, because they don&rsquo;t have better</li>
+</ul>
+<p>If you want to make counter proposals, please make sure that those requirements are addressed. Also, you should accept the fact that if you have a different set of requirements, then LD Patch is probably not what you want. Finally, if you think that the above requirements are <strong>wrong in the context of LDP</strong>, then you should make an official complaint to the group explaining your reasoning.</p>
+<p>I would like to emphasize that <strong>relying on an existing syntax (such as SPARQL) was never a requirement for me</strong>. While reusing bits of SPARQL Update in LD Patch whenever it makes sense is reasonable, it should be done sparingly. For example, <a href="http://lists.w3.org/Archives/Public/public-ldp-wg/2014Jul/thread.html#msg81">I argued on the LDP mailing list</a> that shared syntax with different (runtime) semantics could break some user expectations.</p>
+<h2 id="faq">Frequently Asked Questions</h2>
+<p><span id="dbooth-questions">Thanks to <a href="http://dbooth.org/">David Booth</a></span> for <a href="http://lists.w3.org/Archives/Public/public-ldp/2014Sep/0014.html">providing me with well formulated questions and concerns</a>. Here are some answers. They only complete the arguments in the other sections of this post.</p>
+<p><em>Are there any concerns about inventing a new syntax?</em> What if SPARQL, or a profile of it, could <strong>not</strong> address <a href="#requirements">all the requirements</a>? What if a subset of the syntax was no longer aligned with the superset semantics?</p>
+<p><em>Isn&rsquo;t this yet another syntax similar to SPARQL, which ends up confusing newcomers?</em> Of course there are similar: exactly 68% of the grammar rules for LD Patch are directly coming from Turtle, and SPARQL made a similar choice.</p>
+<p><em>Would using a single language decrease development and maintenance costs?</em> I would like to see actual evidence of that claim. Some people actually have <a href="http://martinfowler.com/bliki/OneLanguage.html">a more nuanced opinion</a> on that subject, and I tend to agree as I find myself using the language/framework that I find the most fit to a given job.</p>
+<p><em>Can implementers simply plug in an existing general-purpose SPARQL engine to get a new system up and running quickly?</em> Not so easy. You still need to reject the valid SPARQL Update queries that are not valid LD Patch queries. And you can be sure that I will make sure that the test suite has tests for that :-) And because I have done it, I can claim that unlike full SPARQL, LD Patch is quick and easy to implement.</p>
+<p><em>Would implementers have the option of supporting additional SPARQL 1.1 Update operations?</em> There is definitely a use-case for querying data in LDP Containers using SPARQL, or using a <a href="http://blog.pellucid.com/post/95282190715/exposing-resources-in-datomic-using-linked-data">more ad-hoc query language with support for ordering, filtering, and aggregation</a>. And it is true that bulk updating could be addressed with SPARQL Update. But those use-cases are different from PATCH.</p>
+<h2 id="next-steps">Next steps</h2>
+<p>The First Public Working Draft just got published. As expected, the document is getting reviewed by experts, who have already started to provide feedback to the group.</p>
+<p>In the meantime, the editors are working on completing the semantics section of the document. A proposed approach was to provide a translation from LD Patch to SPARQL Update. While this is definitely useful for people with a SPARQL background, <a href="#confusing-semantics">this cannot be used as a formal semantics</a>. We are trying to find a good trade-off between the usual tooling from formal semantics theory, and something that could be read by people without such a theoretical background.</p>
+<p>And finally, after the specification gets completed, we will focus on providing a test suite. The plan is to make it part of the <a href="https://github.com/w3c/ldp-testsuite">LDP one</a>.</p>
+<p>That&rsquo;s all folks.   (and thanks Andrei for reviewing drafts for this post)</p>
+
+</article>
+<script src="/asset/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</body>
+</html>
+

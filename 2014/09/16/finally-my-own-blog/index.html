@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Finally my own blog</title>
+  <meta name="description" content="bertails.org blog linked data rdf scala">
+  <meta name="author" content="Alexandre Bertails">
+  <meta name="viewport" content="width=device-width, initial-scale=1.2">
+  <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400italic,700,700italic" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/asset/sunburst.css">
+  <link rel="stylesheet" href="/asset/main.css" />
+
+  <script type="application/ld+json">
+{
+  "@id" : "https://bertails.org/2014/09/16/finally-my-own-blog/",
+  "@type" : "http://schema.org/BlogPosting",
+  "datePublished" : "2014-09-16",
+  "headline" : "Finally my own blog",
+  "@context" : {
+    "datePublished" : {
+      "@id" : "http://schema.org/datePublished"
+    },
+    "headline" : {
+      "@id" : "http://schema.org/headline"
+    }
+  }
+}
+
+  </script>
+
+</head>
+<body>
+  <aside>
+    <a href="/"><img id="avatar" src="/image/alex.jpg" alt="Home"></a>
+    <p>
+      I am Alexandre Bertails: <a href="/alex#me">WebID</a>, <a href="/resume/">resume</a>. I do Scala and Linked Data. Welcome to my blog (<a href="/feed/all.xml">feed</a>).
+    </p>
+    <div class="icons">
+      <a href="mailto:alexandre@bertails.org"><img alt="Send Alex an email" src="/image/contact.svg"></a>
+      <a href="https://twitter.com/bertails"><img alt="Follow betehess on Twitter" src="/image/twitter.svg"></a>
+      <a href="https://github.com/betehess"><img alt="Follow betehess on Github" src="/image/github.svg"></a>
+    </div>
+  </aside>
+  
+<article>
+<h1>Finally my own blog</h1>
+<p>I have finally found the time and the motivation to put together my own blog \o/ I had actually planned to do so for about 10 years, basically since I own <code>bertails.org</code>&hellip; It is not completely ready yet but I prefer to release it now and work out the issues later. Otherwise it would never happen.</p>
+<p>Sooo, how does this work? I wanted something as easy to use as possible. So I have settled on <a href="http://docs.getpelican.com/">Pelican</a>. At least for now. As I don&rsquo;t want to pollute my environment with Python dependencies, I am using <a href="https://www.docker.com/">Docker</a> to generate the static version of this website. The <a href="https://github.com/betehess/my-pelican/">project</a> started as a clone of <a href="https://github.com/jderuere/docker-pelican">https://github.com/jderuere/docker-pelican</a> but I quickly rewrote everything, including the <a href="https://github.com/betehess/my-pelican/blob/master/Dockerfile">Dockerfile</a>. I run Pelican within the container but against the mounted <code>website</code> directory, and I propagate my user from the host to avoid right issues (Docker uses root by default). So I do something like</p>
+<pre><code class="language-bash">docker run --name=pelican -d -v `pwd`/website:/srv/pelican-website \
+  -p 8000:8000 betehess/pelican
+</code></pre>
+<p>The theme is directly based on <a href="http://paulrouget.com/">Paul Rouget&rsquo;s website</a>, with few adaptations. Most important ones are the fixed font (<a href="https://www.google.com/fonts/specimen/Ubuntu+Mono">Ubuntu Mono</a>) and the greenish colour for the links. I only use 2 templates from Pelican: <code>index.html</code> and <code>article.html</code>. The blog now becomes the main entry point for <a href="http://bertails.org">http://bertails.org</a>. The previous index page has moved to <a href="http://bertails.org/alex">http://bertails.org/alex</a> as I intend to use <a href="http://bertails.org/alex#me">http://bertails.org/alex#me</a> as my <a href="http://www.w3.org/wiki/WebID">WebID</a>.</p>
+<p>My mugshot <a href="https://www.flickr.com/photos/amyvdh/5837280596/">was taken by</a> my friend and ex <a href="http://www.w3.org">W3C</a> colleague <a href="https://twitter.com/amyvdh">Amy van der Hiel</a>. There are very few pictures of me on the Web :-) I cannot remember where the font icons are coming from though :-/</p>
+<p>There are no comments at the moment. The reason is that I couldn&rsquo;t find anything that I liked. I have the markup and the CSS ready though. So it should land here in just a few weeks.</p>
+<p>What will you find on this blog? Mainly articles about <a href="http://www.scala-lang.org/">Scala</a> and <a href="http://en.wikipedia.org/wiki/Linked_data">Linked Data</a>. I will maintain RSS feeds for those subjects when the time comes.</p>
+<p>Stay tuned!</p>
+
+</article>
+<script src="/asset/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</body>
+</html>
+

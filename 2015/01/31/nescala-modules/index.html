@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>[nescala] cake pattern - modules</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+     @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+     @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+     @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+     body { font-family: 'Droid Serif'; }
+     h1, h2, h3 {
+       font-family: 'Yanone Kaffeesatz';
+       font-weight: normal;
+     }
+     .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+
+     a:visited { color: blue; }
+     .mainContainer {
+       height: 25%;
+     }
+     .divA {
+       width: 45%;
+       height: 20%;
+       align: right;
+     }
+     .divB {
+       float: right;
+       width: 50%;
+       margin-bottom: 10px;
+     }
+     .divC {
+       float: right;
+       clear: right;
+       width: 50%;
+     }
+     .pellucid {
+       font-family: 'Yanone Kaffeesatz';
+       font-weight: normal;
+       line-height: 28pt;
+       font-size: 4rem;
+     }
+     .gap {
+       height: 3em;
+     }
+     .huge .remark-code {
+       font-size: 3rem;
+     }
+     .big {
+       font-size: 1.5rem;
+     }
+     .box {
+       font-family: 'Yanone Kaffeesatz';
+       position: fixed;
+       padding: 0.5rem;
+       border: 2px solid;
+       background-color: LightSalmon;
+       border-color: red;
+       border-radius: 10px;
+     }
+     .pellogo {
+       top: 2rem;
+       right: 2.5rem;
+       width: 5rem;
+       z-index: 10;
+       position: fixed;
+     }
+     .pellogo > img {
+       width: 100%;
+     }
+     .remark-slide-content {
+       width: 100%;
+     }
+
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# [nescala] cake pattern / modules
+
+Daniel James [@dwhjames](http://twitter.com/dwhjames)
+
+Alexandre Bertails [@bertails](http://twitter.com/bertails)
+
+<br />
+
+<div class="mainContainer">
+  <div class="divB left pellucid">Pellucid</div>
+  <div class="divC left">
+    <a href="http://www.pellucid.com/">http://www.pellucid.com/</a>
+  </div>
+  <div class="divA right">
+    <img alt="Pellucid Analytics logo" src="pellucid.png" />
+  </div>
+</div>
+
+---
+
+# class hierarchy for Option[A]
+
+.center[![Option class diagram](scala-option.png)]
+
+```scala
+sealed abstract class Option[+A]
+final case class Some[+A](x: A) extends Option[A]
+case object None extends Option[Nothing]
+```
+
+* types and subtyping
+* injectors: None, new ...
+* extractors: pattern matching, unapply
+
+---
+
+# abstracting over types
+
+```scala
+import scala.language.higherKinds
+
+trait OptionSig {
+  type Option[+_]
+  type Some[+A] <: Option[A]
+  type None <: Option[Nothing]
+}
+```
+
+---
+
+# abstracting over operations
+
+```scala
+abstract class OptionOps[Sig <: OptionSig] {
+  def some[A](x: A): Sig#Some[A]
+  def none: Sig#None
+  def fold[A, B](opt: Sig#Option[A])(ifNone: => B, ifSome: A => B): B
+}
+```
+
+```scala
+object OptionOps {
+
+  def apply[Sig <: OptionSig](implicit ops: OptionOps[Sig]): OptionOps[Sig] = ops
+
+}
+```
+
+
+---
+
+# functions over OptionSig/OptionOps
+
+```scala
+import scalaz.Show
+
+class OptionShow[Sig <: OptionSig : OptionOps] {
+
+  def optionShow[A : Show]: Show[Sig#Option[A]] = {
+    // retrieving the typeclass instances
+    val showA = Show[A]
+    val ops = OptionOps[Sig]
+
+    val instance = new Show[Sig#Option[A]] {
+      override def shows(opt: Sig#Option[A]): String = ops.fold(opt)(
+        "none",
+        x => s"some(${showA.shows(x)})"
+      )
+    }
+    instance
+  }
+
+}
+
+object OptionShow {
+
+  implicit def apply[Sig <: OptionSig : OptionOps]: OptionShow[Sig] =
+    new OptionShow[Sig]
+
+}
+```
+
+---
+
+# a simple implementation
+
+```scala
+trait ScalaOption extends OptionSig {
+
+  type Option[+A] = scala.Option[A]
+  type Some[+A]   = scala.Some[A]
+  type None       = scala.None.type
+
+}
+
+object ScalaOption {
+
+  implicit object ops extends OptionOps[ScalaOption] {
+
+    def some[A](x: A): ScalaOption#Some[A] = scala.Some(x)
+
+    val none: ScalaOption#None = scala.None
+
+    def fold[A, B](opt: ScalaOption#Option[A])(ifNone: => B, ifSome: A => B): B =
+      opt match {
+        case scala.None    => ifNone
+        case scala.Some(x) => ifSome(x)
+      }
+
+  }
+
+}
+```
+
+---
+
+# using our option
+
+```scala
+class Program[Sig <: OptionSig : OptionOps] extends App {
+
+  val ops = OptionOps[Sig]
+  import ops._
+
+  // a little dance to derive our Show instance
+  import scalaz.std.anyVal.intInstance
+  val showOptOptInt = {
+    implicit val showOptInt = OptionShow[Sig].optionShow[Int]
+    OptionShow[Sig].optionShow[Sig#Option[Int]]
+  }
+
+  // scalaz's syntax tricks are awesome
+  import showOptOptInt.showSyntax._
+
+  val optOpt = some(some(42))
+
+  println("optOpt: " + optOpt.shows)
+
+  val optNone = some(none)
+
+  println("optNone: " + optNone.shows)
+
+}
+```
+
+---
+
+# plugging everything together
+
+```scala
+scala> object MainWithScalaOption extends Program[ScalaOption]
+defined object MainWithScalaOption
+
+scala> MainWithScalaOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+```
+
+---
+
+# our own module implementation
+
+```scala
+object MyOption extends OptionSig {
+
+  sealed abstract class Option[+A]
+
+  final case class Some[+A](x: A) extends Option[A]
+
+  sealed abstract class None extends Option[Nothing]
+  case object None extends None
+
+  implicit object ops extends OptionOps[MyOption.type] {
+
+    def some[A](x: A): MyOption.type#Some[A] = Some(x)
+
+    val none: MyOption.type#None = None
+
+    def fold[A, B](opt: MyOption.type#Option[A])(ifNone: => B, ifSome: A => B): B =
+      opt match {
+        case None    => ifNone
+        case Some(x) => ifSome(x)
+      }
+  }
+
+}
+```
+
+---
+
+# Java8-based implementation
+
+```scala
+import java.util.Optional
+
+trait Java8Option extends OptionSig {
+
+  type Option[+A] = Optional[_ <: A]
+  type Some[+A]   = Optional[_ <: A]
+  type None       = Optional[Nothing]
+
+}
+
+object Java8Option {
+
+  implicit object ops extends OptionOps[Java8Option] {
+
+    def some[A](x: A): Java8Option#Some[A] = Optional.of(x)
+
+    val none: Java8Option#None = Optional.empty()
+
+    def fold[A, B](opt: Java8Option#Option[A])(ifNone: => B, ifSome: A => B): B = {
+      import java.util.function.{ Function => F, Supplier }
+      def f = new F[A, B] { def apply(a: A): B = ifSome(a) }
+      def supplier = new Supplier[B] { def get(): B = ifNone }
+      opt.map[B](f).orElseGet(supplier)
+    }
+
+  }
+
+}
+```
+
+---
+
+# Any-based implementation
+
+```scala
+trait NullOption extends OptionSig {
+
+  type Option[+A] = Any
+  type Some[+A]   = Any
+  type None       = Null
+
+}
+
+object NullOption {
+
+  implicit object ops extends OptionOps[NullOption] {
+
+    def some[A](x: A): NullOption#Some[A] = x
+
+    val none: NullOption#None = null
+
+    def fold[A, B](opt: NullOption#Option[A])(ifNone: => B, ifSome: A => B): B = {
+      if (opt == null) ifNone
+      else ifSome(opt.asInstanceOf[A])
+    }
+
+  }
+
+}
+```
+
+---
+
+# back to our programs
+
+```scala
+scala> object MainWithScalaOption extends Program[ScalaOption]
+defined object MainWithScalaOption
+
+scala> MainWithScalaOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala> object MainWithJava8Option extends Program[Java8Option]
+defined object MainWithScalaOption
+
+scala> MainWithJava8Option.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala> object MainWithMyOption extends Program[MyOption.type]
+defined object MainWithMyOption
+
+scala> MainWithMyOption.main(Array())
+optOpt: some(some(42))
+optNone: some(none)
+
+scala> object MainWithNullOption extends Program[NullOption]
+defined object MainWithNullOption
+
+scala> MainWithNullOption.main(Array())
+optOpt: some(some(42))
+optNone: none
+```
+
+---
+
+# link
+
+* http://io.pellucid.com/blog/scalas-modular-roots
+* http://io.pellucid.com/blog/abstract-algebraic-data-type
+
+
+
+
+
+
+
+
+    </textarea>
+    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript">
+    <!-- script src="//gnab.github.io/remark/downloads/remark-0.6.5.min.js" type="text/javascript"-->
+    </script>
+    <script type="text/javascript">
+     var slideshow = remark.create();
+    </script>
+  </body>
+</html>

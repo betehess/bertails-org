@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Coding with Curry-Howard</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+     @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+     @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+     @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+     
+     body { font-family: 'Droid Serif'; }
+     h1, h2, h3 {
+       font-family: 'Yanone Kaffeesatz';
+       font-weight: normal;
+     }
+     .remark-code, .remark-inline-code {
+       font-family: 'Ubuntu Mono';
+       background-color: rgba(0,0,0,0.1) !important;
+     }
+     a:visited { color: blue; }
+     .mainContainer {
+       height: 25%;
+     }
+     .divA {
+       width: 45%;
+       height: 20%;
+       align: right;
+     }
+     .divB {
+       float: right;
+       width: 50%;
+       margin-bottom: 10px;
+     }
+     .divC {
+       float: right;
+       clear: right;
+       width: 50%;
+     }
+     .pellucid {
+       font-family: 'Yanone Kaffeesatz';
+       font-weight: normal;
+       line-height: 28pt;
+       font-size: 4rem;
+     }
+     .gap {
+       height: 3em;
+     }
+     .huge .remark-code {
+       font-size: 3rem;
+     }
+     .big {
+       font-size: 1.5rem;
+     }
+     .box {
+       font-family: 'Yanone Kaffeesatz';
+       position: fixed;
+       padding: 0.5rem;
+       border: 2px solid;
+       background-color: LightSalmon;
+       border-color: red;
+       border-radius: 10px;
+     }
+     .pellogo {
+       top: 2rem;
+       right: 2.5rem;
+       width: 5rem;
+       z-index: 10;
+       position: fixed;
+     }
+     .pellogo > img {
+       width: 100%;
+     }
+     .scalaio-logo {
+       top: 2.1rem;
+       right: 10rem;
+       width: 8rem;
+       z-index: 11;
+       position: fixed;
+     }
+     .scalaio-logo > img {
+       border-radius: 5%;
+       width: 100%;
+     }
+     .remark-slide-content {
+       width: 100%;
+     }
+    </style>
+  </head>
+  <body>
+    
+    <textarea id="source">
+
+class: center, middle
+
+# Coding with Curry-Howard
+
+<div class="gap"></div>
+
+<div class="mainContainer">
+  <div class="divB left">
+    <a href="http://bertails.org/">http://bertails.org</a>
+  </div>
+  <div class="divC left">
+    <a href="https://twitter.com/bertails">@bertails</a>
+  </div>
+  <div class="divA right">
+    <h2>Alexandre Bertails</h2>
+  </div>
+</div>
+
+<div class="mainContainer">
+  <div class="divB left pellucid">Pellucid</div>
+  <div class="divC left">
+    <a href="http://www.pellucid.com/">http://www.pellucid.com/</a>
+  </div>
+  <div class="divA right">
+    <img alt="Pellucid Analytics logo" src="pellucid.png" />
+  </div>
+</div>
+
+<!--div style='position: fixed; top: 16rem; left: 23rem; width: 10rem;'>
+  <img alt='Scala.IO logo' src='scalaio.png' style='border-radius: 5%; width: 100%;' />
+</div-->
+
+
+
+
+
+---
+
+## euclidian division by 2
+
+```scala
+val eucl_div2: Int => Int = (x: Int) => x match {
+  case 0 => 0
+  case 1 => 0
+  case _ => 1 + div2(x - 2)
+}
+```
+
+```scala
+scala> List.iterate(0, 5)(_ + 1) map (x => x -> eucl_div2(x))
+res0: List[(Int, Int)] = List((0,0), (1,0), (2,1), (3,1), (4,2))
+```
+
+
+
+---
+
+## Peano numbers: Nat datatype
+
+
+```scala
+sealed trait Nat
+
+case object O         extends Nat
+
+case class  S(n: Nat) extends Nat
+```
+
+```scala
+val zero = O
+
+val two = S(S(O))
+
+val five = S(S(S(S(S(O)))))
+```
+
+**implicit conversion from `Int` to `Nat`**
+
+```scala
+implicit def toNat(i: Int): Nat = {
+  require(i >= 0)
+  i match {
+    case 0 => O
+    case _ => S(toNat(i - 1))
+  }
+}
+```
+
+---
+
+## operations on Nat
+
+```scala
+def plus(n: Nat, m: Nat): Nat = n match {
+  case O     => m
+  case S(n0) => S(plus(n0, m))
+}
+
+def mult(n: Nat, m: Nat): Nat = n match {
+  case O     => O
+  case S(n0) => plus(m, mult(n0, m))
+}
+```
+
+```scala
+implicit class NatSyntax(val n: Nat) extends AnyVal {
+
+  def + (m: Nat): Nat = plus(n, m)
+  def * (m: Nat): Nat = mult(n, m)
+
+  def toInt: Int = n match {
+    case O     => 0
+    case S(n0) => 1 + n0.toInt
+  }
+
+}
+```
+
+
+---
+
+
+## Nat operations – examples
+
+```scala
+scala> val two: Nat = S(S(O))
+two: Nat = S(S(O))
+
+scala> val three: Nat = S(S(S(O)))
+three: Nat = S(S(S(O)))
+
+scala> val five: Nat = three + two
+five: Nat = S(S(S(S(S(O)))))
+
+scala> val six: Nat = three * two
+six: Nat = S(S(S(S(S(S(O))))))
+
+scala> val sixAsInt = six.toInt
+sixAtInt: Int = 6
+```
+
+
+---
+
+## eucl_div2 on Nat
+
+```scala
+val eucl_div2: Nat => Nat = {
+  case O    => `O`
+  case S(n) => n match {
+    case O     => `O`
+    case S(n0) => `S (eucl_div2(n0))`
+  }
+}
+```
+
+```scala
+scala> List.iterate[Nat](O, 5)(S(_)) map (x => x.toInt -> eucl_div2(x).toInt)
+res5: List[(Int, Int)] = List((0,0), (1,0), (2,1), (3,1), (4,2))
+```
+
+???
+
+```scala
+val eucl_div2: Nat => Nat = {
+  case O    => O
+  case S(n) => n match {
+    case O     => O
+    case S(n0) => S (eucl_div2(n0))
+  }
+}
+```
+
+
+---
+
+## eucl_div2 invariants as a type
+
+```scala
+case class Div2(x: Nat, y: Nat) {
+  assert(x == y * 2 || x == y * 2 + 1)
+}
+```
+
+```scala
+scala> Div2(7, 3)
+res11: Div2 = Div2(S(S(S(S(S(S(S(O))))))),S(S(S(O))))
+
+scala> Div2(0, 0)
+res12: Div2 = Div2(O,O)
+
+scala> Div2(10, 3)
+java.lang.AssertionError: assertion failed
+  at scala.Predef$.assert(Predef.scala:151)
+  ... 44 elided
+```
+
+
+
+
+
+---
+
+## eucl_div2 invariants as a type
+
+```scala
+case class Div2(x: Nat, y: Nat) {
+  assert(x == y * 2 || x == y * 2 + 1)
+}
+```
+
+```scala
+val eucl_div2: Nat => Div2 = (x: Nat) => x match {
+  case O    => Div2(x, O)
+  case S(n) => n match {
+    case O     => Div2(x, O)
+    case S(x0) =>
+      val Div2(x1, y) = eucl_div2(x0)
+      assert(x1 == x0)
+      Div2(x, S(y))
+  }
+}
+```
+
+```scala
+scala> List.iterate[Nat](O, 5)(S(_)) map (x => x.toInt -> eucl_div2(x).y.toInt)
+res7: List[(Int, Int)] = List((0,0), (1,0), (2,1), (3,1), (4,2))
+```
+
+
+
+
+---
+
+## Coq proof engine
+
+.center.huge[
+```
+ v     
+<<O___,,
+  \VV/ 
+   //  
+```
+]
+
+<div class="gap"></div>
+
+* executable algorithms
+* mathematical definitions ([stdlib](http://coq.inria.fr/distrib/current/stdlib/))
+* interactive theorem prover
+* higher-order typed lambda calculus
+  * derived from the **C**alculus **o**f Inductive **C**onstructions
+
+???
+
+In contrast, systems which introduce **polymorphic types** (like System F) or **dependent types** (like the Logical Framework) are not considered simply typed.
+
+
+
+---
+
+## nat in Coq
+
+```coq
+Coq < Inductive nat : Set :=
+        | O : nat
+        | S : nat -> nat.
+nat is defined
+nat_rect is defined
+nat_ind is defined
+nat_rec is defined
+```
+
+```coq
+Coq < Check O.
+O
+     : nat
+```
+
+```coq
+Coq < Check S(S(O)).
+S (S O)
+     : nat
+```
+
+<div class="box" style="top: 25%; left: 60%;">
+  <a href="http://coq.inria.fr/library/Coq.Init.Datatypes.html#nat">nat is already defined in stdlib</a>
+</div>
+
+
+---
+
+## operations on Nat
+
+
+```coq
+Coq < Fixpoint plus (n m:nat) : nat :=
+        match n with
+        | O => m
+        | S p => S (p + m)
+        end
+      where "n + m" := (plus n m).
+plus is recursively defined (decreasing on 1st argument)
+```
+
+```coq
+Coq < Fixpoint mult (n m:nat) : nat :=
+        match n with
+        | O => O
+        | S p => m + p * m
+        end
+      where "n * m" := (mult n m).
+mult is recursively defined (decreasing on 1st argument)
+```
+
+```coq
+Coq < Compute S(S(O)) + S(S(S(O))).
+     = S (S (S (S (S O))))
+     : nat
+```
+
+???
+
+```
+n * m == m + m + ... + m  (n times)
+n * m == m + (n-1) * m
+```
+
+
+---
+
+
+
+
+## div2 in Coq
+
+```coq
+Coq < Inductive div2 x : Set :=
+        | divex : forall y, x = 2 * y \/ x = 1 + 2 * y -> div2 x.
+div2 is defined
+div2_rect is defined
+div2_ind is defined
+div2_rec is defined
+```
+
+--
+
+```coq
+Coq < Check divex 1.
+divex 1
+     : `forall y : nat, 1 = 2 * y \/ 1 = 1 + 2 * y -> div2 1`
+```
+
+--
+
+```coq
+Coq < Check divex 1 0.
+divex 1 0
+     : `1 = 2 * 0 \/ 1 = 1 + 2 * 0 -> div2 1`
+```
+
+--
+
+```coq
+Coq < Check divex 1 0
+   (or_intror (eq_ind 0 (fun n : nat => 1 = 1 + n) eq_refl (2 * 0) (mult_n_O 2)))
+.
+divex 1 0
+  (or_intror
+     (eq_ind 0 (fun n : nat => 1 = 1 + n) eq_refl (2 * 0) (mult_n_O 2)))
+     : `div2 1`
+```
+
+
+---
+
+## interaction mode
+
+```coq
+Coq < Lemma eucl_div2 : forall (x : nat), div2 x.
+1 subgoal
+  
+  ============================
+   `forall x : nat, div2 x`
+
+eucl_div2 < 
+```
+
+--
+
+### introducing x in our context
+
+```coq
+eucl_div2 < `intro x`.
+1 subgoal
+  
+  x : nat
+  ============================
+   div2 x
+```
+
+
+---
+
+## strong induction
+
+**IF**
+
+```coq
+nat:      0     1     2     ...   m      <    n0
+
+Prop:     P 0   P 1   P 2   ...   P m   ...   P n0
+```
+
+**AND** `P n0`
+
+**THEN** `forall n, P n`
+
+--
+
+### which is already in Coq: gt_wf_rec
+
+```coq
+eucl_div2 < Require Import Wf_nat.
+
+eucl_div2 < Check gt_wf_rec.
+gt_wf_rec
+     : forall (n : nat) (P : nat -> Set),
+       (`forall n0 : nat, (forall m : nat, n0 > m -> P m)` -> `P n0`) -> `P n`
+```
+
+<div class="box" style="top: 70%; left: 70%;">
+  <a href="http://coq.inria.fr/distrib/current/stdlib/Coq.Arith.Wf_nat.html#gt_wf_rec">gt_wf_rec</a>
+</div>
+
+
+
+---
+
+## a stronger context
+
+```coq
+eucl_div2 < pattern x.
+1 subgoal
+  
+  x : nat
+  ============================
+   `(fun n : nat => div2 n)` x
+```
+
+```coq
+eucl_div2 < apply gt_wf_rec; intros n H.
+1 subgoal
+  
+  x : nat
+  `n : nat`
+  `H : forall m : nat, n > m -> div2 m`
+  ============================
+   div2 n
+```
+
+<div class="box" style="top: 25%; left: 65%;">
+  <a href="http://coq.inria.fr/coq/refman/Reference-Manual010.html#hevea_tactic140">pattern</a>
+</div>
+
+--
+
+```coq
+eucl_div2 < induction n.
+```
+
+
+---
+
+## first induction
+
+```coq
+eucl_div2 < induction n.
+2 subgoals
+  
+  x : nat
+  H : forall m : nat, `0` > m -> div2 m
+  ============================
+   div2 `0`
+
+subgoal 2 is:
+ div2 (`S n`)
+```
+
+--
+
+```coq
+eucl_div2 < `apply divex with 0`.
+```
+
+---
+
+## construct a div2 for n = 0
+
+```coq
+eucl_div2 < apply divex with 0.
+2 subgoals
+  
+  x : nat
+  H : forall m : nat, 0 > m -> div2 m
+  ============================
+   `0 = 2 * 0` \/ 0 = 1 + 2 * 0
+
+subgoal 2 is:
+ div2 (S n)
+```
+
+--
+
+let's try to prove the left operand :-)
+
+```coq
+eucl_div2 < left.
+2 subgoals
+  
+  x : nat
+  H : forall m : nat, 0 > m -> div2 m
+  ============================
+   `0 = 2 * 0`
+
+subgoal 2 is:
+ div2 (S n)
+```
+
+---
+
+## more trivial things...
+
+```coq
+eucl_div2 < rewrite <- mult_n_O.
+2 subgoals
+  
+  x : nat
+  H : forall m : nat, 0 > m -> div2 m
+  ============================
+   0 = 0
+
+subgoal 2 is:
+ div2 (S n)
+```
+
+<div class="box" style="top: 25%; left: 65%;">
+  <a href="http://coq.inria.fr/library/Coq.Init.Peano.html#mult_n_O">mult_n_O</a>
+</div>
+
+
+
+```coq
+eucl_div2 < reflexivity.
+1 subgoal
+  
+  x : nat
+  n : nat
+  H : forall m : nat, S n > m -> div2 m
+  IHn : (forall m : nat, n > m -> div2 m) -> div2 n
+  ============================
+   `div2 (S n)`
+```
+
+--
+
+```coq
+eucl_div2 < induction n.
+```
+
+---
+
+## second induction
+
+```coq
+eucl_div2 < induction n.
+2 subgoals
+  
+  x : nat
+  H : forall m : nat, 1 > m -> div2 m
+  IHn : (forall m : nat, 0 > m -> div2 m) -> div2 0
+  ============================
+   `div2 1`
+
+subgoal 2 is:
+ div2 (`S (S n)`)
+```
+
+```coq
+eucl_div2 < `apply divex with 0`.
+```
+
+
+
+
+
+---
+
+## another easy case: n = 1
+
+```coq
+eucl_div2 < apply divex with 0.
+2 subgoals
+  
+  x : nat
+  H : forall m : nat, 1 > m -> div2 m
+  IHn : (forall m : nat, 0 > m -> div2 m) -> div2 0
+  ============================
+   1 = 2 * 0 \/ `1 = 1 + 2 * 0`
+
+subgoal 2 is:
+ div2 (S (S n))
+```
+
+```coq
+eucl_div2 < right; rewrite <- plus_n_O; reflexivity.
+1 subgoal
+  
+  x : nat
+  n : nat
+  `H : forall m : nat, S (S n) > m -> div2 m`
+  ...
+  ============================
+   `div2 (S (S n))`
+```
+
+--
+
+```coq
+eucl_div2 < `elim H with n`; intros y Hor.
+```
+
+---
+
+## using the strong induction
+
+```coq
+eucl_div2 < `elim H with n`; intros y Hor.
+2 subgoals
+  
+  ...
+  y : nat
+  Hor : `n = 2 * y` \/ `n = 1 + 2 * y`
+  ============================
+   div2 (S (S n))
+
+subgoal 2 is:
+ S (S n) > n
+```
+
+```coq
+eucl_div2 < apply divex with (S y).
+2 subgoals
+  
+  ...
+  y : nat
+  Hor : n = 2 * y `\/` n = 1 + 2 * y
+  ============================
+   S (S n) = 2 * S y `\/` S (S n) = 1 + 2 * S y
+
+subgoal 2 is:
+ S (S n) > n
+```
+
+---
+
+
+## reasonning by case on Hor
+
+```coq
+eucl_div2 < destruct Hor.
+3 subgoals
+  
+  x : nat
+  n : nat
+  H : forall m : nat, S (S n) > m -> div2 m
+  IHn : (forall m : nat, S n > m -> div2 m) -> div2 (S n)
+  IHn0 : (forall m : nat, S n > m -> div2 m) ->
+         ((forall m : nat, n > m -> div2 m) -> div2 n) -> div2 (S n)
+  y : nat
+  H0 : `n = 2 * y`
+  ============================
+   `S (S n) = 2 * S y` \/ S (S n) = 1 + 2 * S y
+
+subgoal 2 is:
+ S (S n) = 2 * S y \/ S (S n) = 1 + 2 * S y
+subgoal 3 is:
+ S (S n) > n
+```
+
+---
+
+## quick finish
+
+```coq
+eucl_div2 < `rewrite H0; simpl; auto.`
+2 subgoals
+  
+  ...
+  H0 : `n = 1 + 2 * y`
+  ============================
+   S (S n) = 2 * S y \/ `S (S n) = 1 + 2 * S y`
+
+subgoal 2 is:
+ S (S n) > n
+```
+
+```coq
+eucl_div2 < rewrite H0; simpl; auto.
+1 subgoal
+  
+  x : nat
+  n : nat
+  ...
+  ============================
+   `S (S n) > n`
+```
+
+```coq
+eucl_div2 < auto.
+`No more subgoals.`
+```
+
+---
+
+## proof of eucl_div2
+
+```coq
+ eucl_div2 < Qed.
+ intro x.
+ pattern x.
+ `apply gt_wf_rec`.
+ intros n H.
+ `induction n`.
+  `apply divex with 0`.
+  left.
+  rewrite <- mult_n_O.
+  reflexivity.
+ 
+  `induction n`.
+   `apply divex with 0`.
+   right; rewrite <- plus_n_O; reflexivity.
+ 
+   `elim H with n`.
+    intros y Hor.
+    `apply divex with (S y)`.
+    destruct Hor.
+     rewrite H0; simpl; auto.
+ 
+     rewrite H0; simpl; auto.
+ 
+    auto.
+ 
+ eucl_div2 is defined
+```
+
+
+---
+
+## proofs are programs
+
+### whose types are theorems
+
+```scala
+Coq < Extraction Language Scala.
+
+Coq < Extraction Inline gt_wf_rec lt_wf_rec induction_ltof2.
+
+Coq < Recursive Extraction eucl_div2.
+
+sealed trait nat
+case object O extends nat
+case class S(n: nat) extends nat
+
+type div2 =
+  nat
+  /* singleton inductive, whose constructor was divex */
+
+val eucl_div2: nat => div2 = {
+  case O => O
+  case S(n) => n match {
+    case O => O
+    case S(n0) => S (eucl_div2(n0))
+  }
+}
+```
+
+--
+
+<div class="box" style="top: 22%; left: 45%;">
+  <p>except that Scala is not<br> a target language for Coq :-)</p>
+</div>
+
+
+
+
+---
+
+## That's all folks
+
+<div class="gap"></div>
+
+.center[These slides are available at]
+
+.center.big[http://bertails.org/2014/10/curry-howard-scala-io/]
+
+
+
+    </textarea>
+    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+     var slideshow = remark.create();
+
+     // add the pellucid logo on the slides
+     Array.prototype.slice.call(document.getElementsByClassName('remark-slide')).splice(1).forEach(function(slide) {
+       var el = document.createElement('div');
+       el.innerHTML = "<img alt='Pellucid Analytics logo' src='pellucid.png' />";
+       el.className = "pellogo";
+       slide.appendChild(el);
+       var el2 = document.createElement('div');
+       el2.innerHTML = "<img alt='Scala.IO logo' src='scalaio.png' />";
+       el2.className = "scalaio-logo";
+       slide.appendChild(el2);
+       console.debug(el2);
+     });
+
+    </script>
+  </body>
+</html>
+

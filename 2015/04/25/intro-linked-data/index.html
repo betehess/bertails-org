@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Introduction to Linked Data - Text by the Bay</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+    @import url(./fonts/Droid_Serif/DroidSerif-Bold.ttf);
+    @import url(./fonts/Droid_Serif/DroidSerif-BoldItalic.ttf);
+    @import url(./fonts/Droid_Serif/DroidSerif-Italic.ttf);
+    @import url(./fonts/Droid_Serif/DroidSerif.ttf);
+    @import url(./fonts/Ubuntu_Mono/UbuntuMono-Bold.ttf);
+    @import url(./fonts/Ubuntu_Mono/UbuntuMono-BoldItalic.ttf);
+    @import url(./fonts/Ubuntu_Mono/UbuntuMono-Italic.ttf);
+    @import url(./fonts/Ubuntu_Mono/UbuntuMono-Regular.ttf);
+    @import url(./fonts/Yanone_Kaffeesatz/YanoneKaffeesatz-Bold.ttf);
+    @import url(./fonts/Yanone_Kaffeesatz/YanoneKaffeesatz-ExtraLight.ttf);
+    @import url(./fonts/Yanone_Kaffeesatz/YanoneKaffeesatz-Light.ttf);
+    @import url(./fonts/Yanone_Kaffeesatz/YanoneKaffeesatz-Regular.ttf);
+
+    @font-face {
+      font-family: 'Yanone Kaffeesatz';
+      font-style: normal;
+      font-weight: 400;
+      src: local('Yanone Kaffeesatz Regular'), local('YanoneKaffeesatz-Regular'), url(https://fonts.gstatic.com/s/yanonekaffeesatz/v7/YDAoLskQQ5MOAgvHUQCcLWjF_m7mVnhXExjNED3rUtY.woff2) format('woff2'), url(https://fonts.gstatic.com/s/yanonekaffeesatz/v7/YDAoLskQQ5MOAgvHUQCcLQa6gm6bS00u2Qn-iPLo1Go.woff) format('woff');
+    }
+
+    @font-face {
+      font-family: 'Droid Serif';
+      font-style: normal;
+      font-weight: 400;
+      src: local('Droid Serif'), local('DroidSerif'), url(https://fonts.gstatic.com/s/droidserif/v6/0AKsP294HTD-nvJgucYTaIgp9Q8gbYrhqGlRav_IXfk.woff2) format('woff2'), url(https://fonts.gstatic.com/s/droidserif/v6/0AKsP294HTD-nvJgucYTaLrIa-7acMAeDBVuclsi6Gc.woff) format('woff');
+    }
+    @font-face {
+      font-family: 'Droid Serif';
+      font-style: normal;
+      font-weight: 700;
+      src: local('Droid Serif Bold'), local('DroidSerif-Bold'), url(https://fonts.gstatic.com/s/droidserif/v6/QQt14e8dY39u-eYBZmppwf79_ZuUxCigM2DespTnFaw.woff2) format('woff2'), url(https://fonts.gstatic.com/s/droidserif/v6/QQt14e8dY39u-eYBZmppwRbnBKKEOwRKgsHDreGcocg.woff) format('woff');
+    }
+    @font-face {
+      font-family: 'Droid Serif';
+      font-style: italic;
+      font-weight: 400;
+      src: local('Droid Serif Italic'), local('DroidSerif-Italic'), url(https://fonts.gstatic.com/s/droidserif/v6/cj2hUnSRBhwmSPr9kS589weOulFbQKHxPa89BaxZzA0.woff2) format('woff2'), url(https://fonts.gstatic.com/s/droidserif/v6/cj2hUnSRBhwmSPr9kS5894o3ZslTYfJv0R05CazkwN8.woff) format('woff');
+    }
+
+    @font-face {
+      font-family: 'Ubuntu Mono';
+      font-style: normal;
+      font-weight: 400;
+      src: local('Ubuntu Mono'), local('UbuntuMono-Regular'), url(https://fonts.gstatic.com/s/ubuntumono/v6/ViZhet7Ak-LRXZMXzuAfkYgp9Q8gbYrhqGlRav_IXfk.woff2) format('woff2'), url(https://fonts.gstatic.com/s/ubuntumono/v6/ViZhet7Ak-LRXZMXzuAfkbrIa-7acMAeDBVuclsi6Gc.woff) format('woff');
+    }
+    @font-face {
+      font-family: 'Ubuntu Mono';
+      font-style: normal;
+      font-weight: 700;
+      src: local('Ubuntu Mono Bold'), local('UbuntuMono-Bold'), url(https://fonts.gstatic.com/s/ubuntumono/v6/ceqTZGKHipo8pJj4molytv79_ZuUxCigM2DespTnFaw.woff2) format('woff2'), url(https://fonts.gstatic.com/s/ubuntumono/v6/ceqTZGKHipo8pJj4molythbnBKKEOwRKgsHDreGcocg.woff) format('woff');
+    }
+    @font-face {
+      font-family: 'Ubuntu Mono';
+      font-style: italic;
+      font-weight: 400;
+      src: local('Ubuntu Mono Italic'), local('UbuntuMono-Italic'), url(https://fonts.gstatic.com/s/ubuntumono/v6/KAKuHXAHZOeECOWAHsRKAweOulFbQKHxPa89BaxZzA0.woff2) format('woff2'), url(https://fonts.gstatic.com/s/ubuntumono/v6/KAKuHXAHZOeECOWAHsRKA4o3ZslTYfJv0R05CazkwN8.woff) format('woff');
+    }
+    
+    body { font-family: 'Droid Serif'; }
+    h1, h2, h3 {
+      font-family: 'Yanone Kaffeesatz';
+      font-weight: normal;
+    }
+    .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+
+    .remark-inline-code { background: #f0f0f0; }
+
+    a:visited { color: blue; }
+    .mainContainer {
+      height: 25%;
+    }
+
+    .gap {
+      height: 3em;
+    }
+
+    .big {
+      font-size: 1.5rem;
+    }
+
+    .huge {
+      font-size: 5rem;
+    }
+
+    .box {
+      font-family: 'Yanone Kaffeesatz';
+      position: fixed;
+      padding: 0.5rem;
+      border: 2px solid;
+      background-color: LightSalmon;
+      border-color: red;
+      border-radius: 10px;
+    }
+
+     .sized img {
+       width: 100%;
+     }
+
+     .sized90 img {
+       width: 90%;
+     }
+
+     .sized80 img {
+       width: 80%;
+     }
+
+    .semantic-web {
+      background-color: salmon !important;
+    }
+    
+    </style>
+    <script src="vis.js"></script>
+    <link href="vis.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Introduction to RDF and Linked Data
+
+## Alexandre Bertails http://bertails.org
+
+## Text By the Bay
+
+<br>
+
+permalink: http://bertails.org/2015/04/25/intro-linked-data
+
+---
+
+## once upon a time: the Web
+
+--
+
+.left.huge[URL]
+
+<br><br>
+
+--
+
+.center.huge[HTTP]
+
+<br><br>
+
+--
+
+.right.huge[HTML]
+
+
+
+
+
+
+
+---
+
+## once upon a time: the Web **of Data**
+
+.left.huge[URL]
+
+<br><br>
+
+.center.huge[HTTP]
+
+<br><br>
+
+.right.huge[RDF]
+
+
+
+
+---
+
+## TimBL as RDF
+
+<div id="timbl-viz"></div>
+
+
+
+
+
+---
+
+## TimBL as Turtle
+
+```
+@prefix schema: <http://schema.org/> .
+@prefix profile: <http://ogp.me/ns/profile#> .
+@prefix ex: <http://example.org/vocab#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+<http://example.com/timbl#> a schema:Person ;
+  schema:alternateName "TimBL" ;
+  profile:first_name "Tim" ;
+  profile:last_name "Berners-Lee" ;
+  schema:workLocation [ schema:name "W3C/MIT" ] ;
+  schema:performerIn _:b1, _:b2 ;
+  ex:preferredLanguages ( "en" "fr" ).
+
+_:b1 schema:name "F2F5 - Linked Data Platform" ;
+  schema:url <https://www.w3.org/2012/ldp/wiki/F2F5> .
+
+_:b2 a schema:Event ;
+  schema:name "TED 2009" ;
+  schema:startDate "2009-02-04" ;
+  schema:url <http://conferences.ted.com/TED2009/> .
+```
+
+
+---
+
+## TimBL as JSON-LD  
+
+```
+{
+  "@context": "http://schema.org/",
+  "@id": "http://example.com/timbl#",
+  "@type": "Person",
+  "preferredLanguages": [ "en", "fr" ],
+  "first_name": "Tim",
+  "last_name": "Berners-Lee",
+  "alternateName": "TimBL",
+  "performerIn": [
+    {
+      "@id": "_:b0",
+      "@type": "Event",
+      "name": "TED 2009",
+      "startDate": "2009-02-04",
+      "url": "http://conferences.ted.com/TED2009/"
+    },
+  ...
+  ]
+}
+```
+  
+
+
+---
+
+## RDF: one abstract model
+
+```
+graph       ::= Set(triple)
+triple      ::= (node, iri, node)
+node        ::= iri | bnode | literal
+iri         ::= URI with Unicode
+bnode       ::= local node identifier
+literal     ::= (lexicalForm, datatype, Option(lang))
+lexicalForm ::= string
+datatype    ::= iri
+lang        ::= string
+```
+
+<br />
+
+.right[as defined in [RDF 1.1 Concepts](http://www.w3.org/TR/rdf11-concepts/#section-rdf-graph)]
+
+
+
+---
+
+## RDF: several syntaxes
+
+* Turtle
+
+* JSON-LD
+
+* RDF/XML
+
+* N-Triples, TriG, etc.
+
+???
+
+* without a context **and** a frame, JSON-LD won't be used by Web Developers
+
+* JSON-LD encourages you to work on a tree, while RDF is a graph
+
+* don't sacrifice correctness for "pragmatism": JSON itself is usually not enough for data
+
+
+
+
+
+---
+
+## syntax examples
+
+* `<http://example.com/foo>` is a **IRI**
+  
+* `xsd:integer` is a **prefixed IRI**, alias for <http://www.w3.org/2001/XMLSchema#integer>
+
+* `_:b2719` is a **blank node**
+
+* `"foo"` is a **string literal** (`"foo"`, `xsd:string`, no lang)
+
+* `42` is an **integer** (`"42"`, `xsd:integer`, no lang)
+
+* `"foo"@en` is an **i18ned string** ("foo", `rdf:langString`, `"en"`)
+
+
+
+
+---
+
+## datasets
+
+```
+dataset     ::= (graph, Set(namedGraph))
+namedGraph  ::= (graphName, graph)
+graphName   ::= iri | bnode
+```
+
+<br>
+
+#### in plain English
+
+* a **dataset** is made of one **default graph** and a collection of **named graphs**
+
+* a **named graph** is a graph with a name (either IRI or Blank Node)
+
+???
+
+who knows examples of datasets?
+
+
+
+
+---
+  
+## two views of the world
+
+* **databases** vs the **Web**
+
+* **web services** vs **REST**
+
+* **SPARQL** vs **LDP**
+
+<br>
+  
+.center.big[not opposed, just **complimentary**]
+
+???
+
+just a shift of focus
+  
+
+
+---
+
+## Semantic Web^W^WLinked Data timeline
+
+<div class="sized80" id="visualization"></div>
+
+
+---
+
+## SPARQL
+
+looking for the episodes of Doctor Who on http://dbpedia.org/sparql
+
+--
+
+#### simple query
+
+```
+SELECT DISTINCT ?s ?p WHERE {
+ ?s ?p "Doctor Who"@en .
+} LIMIT 100
+```
+
+#### just a bit more complex
+
+```
+SELECT DISTINCT ?s ?date WHERE {
+ ?s ?p <http://dbpedia.org/resource/List_of_Doctor_Who_serials> .
+ ?s dbpprop:date ?date .
+ FILTER (?date > "2001-01-01"^^xsd:dateTime) .
+} LIMIT 500
+```
+
+---
+
+## Linked Data
+
+.center.huge[demo]
+
+--
+
+<br>
+  
+```
+curl -H 'Accept: text/html' http://bertails.org/alex | head
+
+curl -H 'Accept: text/turtle' http://bertails.org/alex
+
+curl -H 'Accept: text/turtle' http://www.w3.org/People/Berners-Lee/card
+
+curl -H 'Accept: text/turtle' http://graph.facebook.com/bertails
+
+curl -H 'Accept: text/turtle' http://www.bbc.co.uk/things/cbeab979-c95b-432e-a3bb-2b1d502f4db5
+```
+  
+  
+---
+
+## LDP: read/write Linked Data
+
+**tldr:** containers (LDP-C) contains (`ldp:contains`) resources (LDP-R)
+
+### HTTP-based (RESTful)
+
+* POST, PUT, PATCH, DELETE, GET
+
+* REST interactions model through `Link` header
+
+### RDF-biased
+
+* for RDF applications (domain-specific triples)
+
+* relies on RDF (protocol-related triples)
+
+* also supports binaries
+
+
+
+---
+
+## sharing structured data on the Web
+
+.big[http://www.bbc.co.uk/programmes/b006q2x0]
+
+### with Facebook, Bing, Google, Yahoo!, Yandex, etc.
+
+* [Open Graph Protocol](https://developers.facebook.com/docs/sharing/webmasters)
+
+* http://schema.org
+
+--
+
+### W3C RDFa distiller
+
+http://www.w3.org/2012/pyRdfa/
+
+[direct link](http://www.w3.org/2012/pyRdfa/extract?uri=http://www.bbc.co.uk/programmes/b006q2x0)
+
+
+
+
+
+
+---
+
+## summary
+
+* RDF: model and serializations
+
+* Semantic Web vs Linked Data
+
+* SPARQL vs LDP
+
+* shared ontologies
+
+
+
+    </textarea>
+    <!-- script src="https://gnab.github.io/remark/downloads/remark-latest.min.js"-->
+    <script src="remark-0.10.2.min.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+    var slideshow = remark.create({
+      navigation: {
+        scroll: false
+      }
+    });
+
+    // DOM element where the Timeline will be attached
+    var container = document.getElementById('visualization');
+
+    var groups = new vis.DataSet([
+      {id: 0, content: 'model'},
+      {id: 1, content: 'format'},
+      {id: 2, content: 'query / API'},
+      {id: 3, content: 'data<br />transformation'},
+      {id: 4, content: 'ontology'}
+    ]);
+
+    // Create a DataSet (allows two way data-binding)
+    var items = new vis.DataSet([
+      // http://www.w3.org/standards/history/rdf11-concepts
+      {id: 1, group: 0, className: 'linked-data', content: 'RDF 1.1', start: '2011-08-30', end: '2014-02-25', type: 'box'},
+      // http://www.w3.org/standards/history/turtle
+      {id: 2, group: 1, className: 'linked-data', content: 'Turtle', start: '2011-08-09', end: '2014-02-25', type: 'box'},
+      // http://www.w3.org/standards/history/json-ld
+      {id: 3, group: 1, className: 'linked-data', content: 'JSON-LD', start: '2012-07-12', end: '2014-01-16', type: 'box'},
+      // http://www.w3.org/standards/history/ldp
+      {id: 4, group: 2, className: 'linked-data', content: 'LDP 1.0', start: '2012-10-25', end: '2015-02-26', type: 'box'},
+      // http://www.w3.org/standards/history/owl-ref
+      {id: 5, group: 0, className: 'semantic-web', content: 'OWL', start: '2002-07-29', end: '2004-02-10', type: 'box'},
+      // http://www.w3.org/standards/history/owl2-direct-semantics
+      {id: 6, group: 0, className: 'semantic-web', content: 'OWL 2', start: '2008-01-08', end: '2012-12-11', type: 'box'},
+      // http://www.w3.org/standards/history/rdf-sparql-query
+      {id: 7, group: 2, className: 'semantic-web', content: 'SPARQL', start: '2004-10-12', end: '2008-01-15', type: 'box'},
+      // http://www.w3.org/standards/history/sparql11-query
+      {id: 8, group: 2, className: 'semantic-web', content: 'SPARQL 1.1', start: '2009-10-22', end: '2013-03-21', type: 'box'},
+      // http://www.w3.org/standards/history/html-rdfa
+      {id: 9, group: 1, className: 'linked-data', content: 'RDFa', start: '2009-10-15', end: '2015-03-17', type: 'box'},
+      // http://www.w3.org/standards/history/skos-reference
+      {id: 10, group: 0, className: 'semantic-web', content: 'SKOS', start: '2005-05-10', end: '2009-08-18', type: 'box'},
+      // http://www.w3.org/standards/history/r2rml
+      {id: 11, group: 3, className: 'linked-data', content: 'RDB2RDF', start: '2010-10-28', end: '2012-09-27', type: 'box'},
+      // http://www.w3.org/standards/history/tabular-data-model
+      {id: 12, group: 3, className: 'linked-data', content: 'CSV on the Web', start: '2014-03-27', end: '2015-04-16', type: 'box'},
+      // http://en.wikipedia.org/wiki/Schema.org
+      {id: 13, group: 4, className: 'linked-data', content: 'schema.org', start: '2011-06-02', type: 'box'},
+      // http://factoryjoe.com/blog/2010/04/22/understanding-the-open-graph-protocol/
+      {id: 14, group: 4, className: 'linked-data', content: 'OGP', start: '2010-04-22', type: 'box'},
+      // http://www.w3.org/standards/history/rdf-concepts
+      {id: 15, group: 0, className: 'semantic-web', content: 'RDF', start: '1999-01-05', type: 'box'},
+      // http://www.w3.org/standards/history/rdf-syntax-grammar
+      {id: 16, group: 1, className: 'semantic-web', content: 'RDF/XML', start: '1999-02-22', type: 'box'},
+      
+//      {id: 6, group: 0, content: 'item 6', start: '2014-04-27', type: 'point'}
+    ]);
+
+
+    
+    // Configuration for the Timeline
+    var options = {
+//      stack: true,
+      showCurrentTime: false,
+//      showCustomTime: true, //'2010-01-01',
+      groupOrder: function (a, b) {
+        return a.id - b.id;
+      }
+    };
+    
+    // Create a Timeline
+    var timeline = new vis.Timeline(container, items, options);
+    timeline.setGroups(groups);
+
+var nodes = [{id: 'http://conferences.ted.com/TED2009/', label: 'http://conferences.ted.com/TED2009/', shape: 'ellipse'},{id: '_:-57cf365:14ce9c71510:-7fc0', label: '', shape: 'ellipse'},{id: '_:936fd6d5f304c87ad4b418fa05be2ae9', label: '', shape: 'ellipse'},{id: '"2009-02-04"', label: '"2009-02-04"', shape: 'box'},{id: '"TimBL"', label: '"TimBL"', shape: 'box'},{id: '"en"', label: '"en"', shape: 'box'},{id: '"Tim"', label: '"Tim"', shape: 'box'},{id: '"TED 2009"', label: '"TED 2009"', shape: 'box'},{id: '"Berners-Lee"', label: '"Berners-Lee"', shape: 'box'},{id: '_:-57cf365:14ce9c71510:-7fbf', label: '', shape: 'ellipse'},{id: '"fr"', label: '"fr"', shape: 'box'},{id: '_:33a53c0c527d583ec3c3ce27dfd91646', label: '', shape: 'ellipse'},{id: '"W3C/MIT"', label: '"W3C/MIT"', shape: 'box'},{id: 'rdf:nil', label: 'rdf:nil', shape: 'ellipse'},{id: '_:d17ba1aa5792d5fdb47c88ea20cc721c', label: '', shape: 'ellipse'},{id: 'schema:Event', label: 'schema:Event', shape: 'ellipse'},{id: '"F2F5 - Linked Data Platform"', label: '"F2F5 - Linked Data Platform"', shape: 'box'},{id: 'https://www.w3.org/2012/ldp/wiki/F2F5', label: 'https://www.w3.org/2012/ldp/wiki/F2F5', shape: 'ellipse'},{id: 'http://example.com/timbl#', label: 'http://example.com/timbl#', shape: 'ellipse'},{id: 'schema:Person', label: 'schema:Person', shape: 'ellipse'}];
+var edges = [{from:'http://example.com/timbl#', to:'_:-57cf365:14ce9c71510:-7fc0', label:'ex:preferredLanguages', labelAlignment:'line-above', style:'arrow', length:420 },{from:'http://example.com/timbl#', to:'_:d17ba1aa5792d5fdb47c88ea20cc721c', label:'schema:performerIn', labelAlignment:'line-above', style:'arrow', length:360 },{from:'http://example.com/timbl#', to:'_:33a53c0c527d583ec3c3ce27dfd91646', label:'schema:performerIn', labelAlignment:'line-above', style:'arrow', length:360 },{from:'http://example.com/timbl#', to:'_:936fd6d5f304c87ad4b418fa05be2ae9', label:'schema:workLocation', labelAlignment:'line-above', style:'arrow', length:380 },{from:'http://example.com/timbl#', to:'"Berners-Lee"', label:'p:last_name', labelAlignment:'line-above', style:'arrow', length:220 },{from:'http://example.com/timbl#', to:'"Tim"', label:'p:first_name', labelAlignment:'line-above', style:'arrow', length:240 },{from:'http://example.com/timbl#', to:'"TimBL"', label:'schema:alternateName', labelAlignment:'line-above', style:'arrow', length:400 },{from:'http://example.com/timbl#', to:'schema:Person', label:'rdf:type', labelAlignment:'line-above', style:'arrow', length:160 },{from:'_:33a53c0c527d583ec3c3ce27dfd91646', to:'https://www.w3.org/2012/ldp/wiki/F2F5', label:'schema:url', labelAlignment:'line-above', style:'arrow', length:200 },{from:'_:33a53c0c527d583ec3c3ce27dfd91646', to:'"F2F5 - Linked Data Platform"', label:'schema:name', labelAlignment:'line-above', style:'arrow', length:220 },{from:'_:d17ba1aa5792d5fdb47c88ea20cc721c', to:'http://conferences.ted.com/TED2009/', label:'schema:url', labelAlignment:'line-above', style:'arrow', length:200 },{from:'_:d17ba1aa5792d5fdb47c88ea20cc721c', to:'"2009-02-04"', label:'schema:startDate', labelAlignment:'line-above', style:'arrow', length:320 },{from:'_:d17ba1aa5792d5fdb47c88ea20cc721c', to:'"TED 2009"', label:'schema:name', labelAlignment:'line-above', style:'arrow', length:220 },{from:'_:d17ba1aa5792d5fdb47c88ea20cc721c', to:'schema:Event', label:'rdf:type', labelAlignment:'line-above', style:'arrow', length:160 },{from:'_:-57cf365:14ce9c71510:-7fbf', to:'rdf:nil', label:'rdf:rest', labelAlignment:'line-above', style:'arrow', length:160 },{from:'_:-57cf365:14ce9c71510:-7fbf', to:'"fr"', label:'rdf:first', labelAlignment:'line-above', style:'arrow', length:180 },{from:'_:-57cf365:14ce9c71510:-7fc0', to:'_:-57cf365:14ce9c71510:-7fbf', label:'rdf:rest', labelAlignment:'line-above', style:'arrow', length:160 },{from:'_:-57cf365:14ce9c71510:-7fc0', to:'"en"', label:'rdf:first', labelAlignment:'line-above', style:'arrow', length:180 },{from:'_:936fd6d5f304c87ad4b418fa05be2ae9', to:'"W3C/MIT"', label:'schema:name', labelAlignment:'line-above', style:'arrow', length:220 }];    
+    
+    // create a network
+    var container = document.getElementById('timbl-viz');
+    var data = {
+      nodes: nodes,
+      edges: edges
+    };
+    var options = {
+      height: '500px',
+      physics: {
+        barnesHut: {
+          enabled: true,
+          gravitationalConstant: -2000,
+          centralGravity: 0.05,
+          springLength: 95,
+          springConstant: 0.04,
+          damping: 0.09
+        }
+      }
+    };
+    var network = new vis.Network(container, data, options);
+
+
+    </script>
+  </body>
+</html>

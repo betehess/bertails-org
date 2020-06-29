@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>An RDF abstraction for the JVM</title>
+  <meta name="description" content="bertails.org blog linked data rdf scala">
+  <meta name="author" content="Alexandre Bertails">
+  <meta name="viewport" content="width=device-width, initial-scale=1.2">
+  <link href="https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,400italic,700,700italic" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/asset/sunburst.css">
+  <link rel="stylesheet" href="/asset/main.css" />
+
+  <script type="application/ld+json">
+{
+  "@id" : "https://bertails.org/2015/06/17/an-rdf-abstraction-for-the-jvm/",
+  "@type" : "http://schema.org/BlogPosting",
+  "datePublished" : "2015-06-17",
+  "headline" : "An RDF abstraction for the JVM",
+  "@context" : {
+    "datePublished" : {
+      "@id" : "http://schema.org/datePublished"
+    },
+    "headline" : {
+      "@id" : "http://schema.org/headline"
+    }
+  }
+}
+
+  </script>
+
+</head>
+<body>
+  <aside>
+    <a href="/"><img id="avatar" src="/image/alex.jpg" alt="Home"></a>
+    <p>
+      I am Alexandre Bertails: <a href="/alex#me">WebID</a>, <a href="/resume/">resume</a>. I do Scala and Linked Data. Welcome to my blog (<a href="/feed/all.xml">feed</a>).
+    </p>
+    <div class="icons">
+      <a href="mailto:alexandre@bertails.org"><img alt="Send Alex an email" src="/image/contact.svg"></a>
+      <a href="https://twitter.com/bertails"><img alt="Follow betehess on Twitter" src="/image/twitter.svg"></a>
+      <a href="https://github.com/betehess"><img alt="Follow betehess on Github" src="/image/github.svg"></a>
+    </div>
+  </aside>
+  
+<article>
+<h1>An RDF abstraction for the JVM</h1>
+<p><a href="http://commonsrdf.incubator.apache.org/">Commons RDF</a> is an effort from the <a href="https://jena.apache.org/">Jena</a> and <a href="http://rdf4j.org/">Sesame</a> communities <cite>to define a common library for RDF 1.1 on the JVM</cite>. In my opinion, the current proposal suffers from design issues which seriously limit interoperability despite the stated objective. In this article, I will explain the limits of the current design and discuss alternatives to address the flaws.</p>
+<p>This article is as much about RDF on the JVM as it is about API design and abstractions in Java. No prior knowledge with RDF is required as I will introduce the RDF model itself. So you might end up learning what RDF is as a side-effect :-)</p>
+<h2 id="the-problem">the problem RDF Commons wants to solve</h2>
+<p>For a long time now, if you wanted to do RDF (and SPARQL) stuff in Java, you basically had the choice between <a href="https://jena.apache.org/">Jena</a> and <a href="http://rdf4j.org/">Sesame</a>. Those two libraries were developed independently and didn&rsquo;t share much, despite the fact that they are both implementations of <a href="http://www.w3.org/standards/techs/rdf#w3c_all">well-defined Web standards</a>.</p>
+<p>So people have come up with ways to go back-and-forth between those two worlds: object adapters, meta APIs, ad-hoc APIs, etc. For example, let&rsquo;s say you wanted to use that awesome asynchronous parser library for <a href="http://www.w3.org/TR/turtle/">Turtle</a>. It returns a Jena graph while your stack is mainly Sesame? Well it&rsquo;s too bad for you. So you use an adapter which wraps every single objects composing your graph.</p>
+<p>So let&rsquo;s say you have the opportunity to solve those problems. What would you do? If you have done software development for a while, especially if it was in Java, your first thought might be about defining a common <a href="http://math.hws.edu/javanotes/c5/s5.html#OOP.5.2">class hierarchy</a> coupled with an <a href="http://en.wikipedia.org/wiki/Abstract_factory_pattern">abstract factory</a>. Then you could go back to the author of the Turtle library with a Pull Request using the new common interfaces, and everybody is happy, right?</p>
+<p>Let&rsquo;s see how this pans out in the case of Commons RDF 0.1.</p>
+<h2 id="commons-rdf">Commons RDF</h2>
+<p><a href="http://commonsrdf.incubator.apache.org/">Commons RDF</a> closely follows <a href="http://www.w3.org/TR/rdf11-concepts/">the concepts defined in RDF 1.1</a>, including the terms used. It specifically targets plain RDF (as opposed to <a href="http://www.w3.org/TR/rdf11-concepts/#section-generalized-rdf">Generalized RDF</a>) and wants to be type-safe as much as possible e.g. only IRIs and blank nodes are accepted in the subject position for a triple.</p>
+<p>Here is a overview of the design of Commons RDF:</p>
+<div style="float: right; margin-left: 4em; margin-right: 2em;">
+  <a href="class-diagram.png">
+    <img src="class-diagram.png" alt="Commons RDF class diagram" style="height: 30em" />
+  </a>
+  <p style="text-align: center; margin-top: 0px;">link to <a href="http://commonsrdf.incubator.apache.org/images/class-diagram.png">original image</a></p>
+</div>
+<ul>
+<li>
+<p>each RDF concept is mapped onto a Java interface: <code>Graph</code>, <code>Triple</code>, <code>RDFTerm</code>, <code>IRI</code>, <code>BlankNode</code>, <code>Literal</code></p>
+</li>
+<li>
+<p>there is an additional concept: <code>BlankNodeOrIRI</code></p>
+</li>
+<li>
+<p>there are sub-type relationships between <code>RDFTerm</code>, <code>BlankNodeOrIRI</code>, <code>IRI</code>, <code>BlankNode</code>, and <code>Literal</code></p>
+</li>
+<li>
+<p>the interfaces expose methods to access their components</p>
+</li>
+<li>
+<p>the factory <code>RDFTermFactory</code> knows how to create concrete instances of the interfaces</p>
+</li>
+</ul>
+<div style="clear: both;"></div>
+<p>Here is a quick look at what RDF <em>actually is</em> in the Commons RDF world (this is basically copied from the <a href="https://git-wip-us.apache.org/repos/asf?p=incubator-commonsrdf.git;a=tree;f=api/src/main/java/org/apache/commons/rdf/api;h=8f2db3110cd11d18e6128eac40cdf597372b73d0;hb=9ee66b0078da61fed85b5fe0b6d5481e9300b140">source code</a>):</p>
+<pre><code class="language-java">package org.apache.commons.rdf.api;
+
+public interface Graph {
+  void add(Triple triple);
+  boolean contains(Triple triple);
+  Stream&lt;? extends Triple&gt; getTriples();
+  ...
+}
+
+public interface Triple {
+  BlankNodeOrIRI getSubject();
+  IRI getPredicate();
+  RDFTerm getObject();
+}
+
+public interface RDFTerm {
+  String ntriplesString();
+}
+
+public interface BlankNodeOrIRI extends RDFTerm { }
+
+public interface IRI extends BlankNodeOrIRI {
+  String getIRIString();
+}
+
+public interface BlankNode extends BlankNodeOrIRI {
+  String uniqueReference();
+}
+
+public interface Literal extends RDFTerm {
+  String getLexicalForm();
+  IRI getDatatype();
+  Optional&lt;String&gt; getLanguageTag();
+}
+
+public interface RDFTermFactory {
+  default Graph createGraph() throws UnsupportedOperationException { ... }
+  default IRI createIRI(String iri)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  /** The returned blank node MUST NOT be equal to any existing */
+  default BlankNode createBlankNode()
+    throws UnsupportedOperationException { ... }
+  /** All `BlankNode`s created with the given `name` MUST be equivalent */
+  default BlankNode createBlankNode(String name)
+    throws UnsupportedOperationException { ... }
+  default Literal createLiteral(String lexicalForm)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  default Literal createLiteral(String lexicalForm, IRI dataType)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  default Literal createLiteral(String lexicalForm, String languageTag)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+  default Triple createTriple(BlankNodeOrIRI subject, IRI predicate, RDFTerm object)
+    throws IllegalArgumentException, UnsupportedOperationException { ... }
+}
+</code></pre>
+<p>Everything looks actually good and pretty standard, right? So you might be wondering why I am not that thrilled by this approach. Keep on reading then :-)</p>
+<h2 id="class-based-design">class-based design</h2>
+<p>As a reminder, in most static languages, <strong>types are only a compile time information</strong>. In Java, classes and interfaces in Java are just a <a href="http://stackoverflow.com/a/5315433/1057315">reified</a> version of types (up to generics <a href="https://docs.oracle.com/javase/tutorial/java/generics/erasure.html">which get erased by the JVM</a>), meaning that they are an (incomplete <em>by design</em>) abstraction for types that can be manipulated at runtime.</p>
+<p>RDF Commons decided to model the RDF types using interfaces. In Java, interfaces and classes rely on what we call <a href="http://en.wikipedia.org/wiki/Nominal_type_system#Nominal_subtyping">nominal subtyping</a>. It means that a concrete implementation is required to <em>explicitly</em> extend (or implement) an interface to be considered a subtype.</p>
+<p>In other words, despite <code>java.lang.UUID</code> being a perfectly acceptable candidate for being a <code>BlankNode</code>, it is impossible to use it <em>directly</em> because <code>UUID</code> does not implement <code>BlankNode</code>, so <code>UUID</code> has to be wrapped. There are actually many other cases like that: <code>java.net.URI</code> or <code>akka.http.model.Uri</code> are acceptable candidates for <code>IRI</code>, <code>java.lang.String</code> or <code>java.lang.Integer</code> for <code>Literal</code>, etc.</p>
+<p>So here is my first and main complaint about Commons RDF: <strong>it forces implementers to coerce their types into its own class hierarchy</strong> and there is no good reason for doing so.</p>
+<h2 id="generics">generics</h2>
+<p>How can be define abstract types and operations on them without relying on class/interface inheritance? You already know the answer, as it is the same story than with <code>java.util.Comparator&lt;T&gt;</code> and <code>java.lang.Comparable&lt;T&gt;</code>.</p>
+<p>Let&rsquo;s see what the factory would look like with this approach:</p>
+<pre><code class="language-java">public interface RDFTermFactory&lt;Graph,
+                                Triple,
+                                RDFTerm,
+                                BlankNodeOrIRI extends RDFTerm,
+                                IRI extends BlankNodeOrIRI,
+                                BlankNode extends BlankNodeOrIRI,
+                                Literal extends RDFTerm&gt; {
+
+  /* same factory functions as before go here */
+
+}
+</code></pre>
+<p>Instead of referring to Java interfaces, we now refer to the new introduced generics. In a way, <strong>generics are more abstract than interfaces</strong>. Also, generics let you express the subtype relationship using <code>extends</code>.</p>
+<p>As you have probably already noticed, that only gives us a way to <em>create inhabitants for those types</em>. We also need a way to <em>access their components</em>.</p>
+<h2 id="rdf-module">RDF module</h2>
+<p>Accessing components was the role of the methods defined on the interfaces. So we just have to move them into the factory and make them <em>functions</em> instead. And because the factory is now made of all the operations actually defining the RDF model, we can refer to it as the <strong><code>RDF</code> module</strong>.</p>
+<pre><code class="language-java">public interface RDF&lt;Graph,
+                     Triple,
+                     RDFTerm,
+                     BlankNodeOrIRI extends RDFTerm,
+                     IRI extends BlankNodeOrIRI,
+                     BlankNode extends BlankNodeOrIRI,
+                     Literal extends RDFTerm&gt; {
+
+  // from org.apache.commons.rdf.api.RDFTermFactory
+  BlankNode createBlankNode();
+  BlankNode createBlankNode(String name);
+  Graph createGraph();
+  IRI createIRI(String iri) throws IllegalArgumentException;
+  Literal createLiteral(String lexicalForm) throws IllegalArgumentException;
+  Literal createLiteral(String lexicalForm, IRI dataType) throws IllegalArgumentException;
+  Literal createLiteral(String lexicalForm, String languageTag) throws IllegalArgumentException;
+  Triple createTriple(BlankNodeOrIRI subject, IRI predicate, RDFTerm object) throws IllegalArgumentException;
+  
+  // from org.apache.commons.rdf.api.Graph
+  Graph add(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  Graph add(Graph graph, Triple triple);
+  Graph remove(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  boolean contains(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  Stream&lt;? extends Triple&gt; getTriplesAsStream(Graph graph);
+  Iterable&lt;Triple&gt; getTriplesAsIterable(Graph graph, BlankNodeOrIRI subject, IRI predicate, RDFTerm object);
+  long size(Graph graph);
+
+  // from org.apache.commons.rdf.api.Triple
+  BlankNodeOrIRI getSubject(Triple triple);
+  IRI getPredicate(Triple triple);
+  RDFTerm getObject(Triple triple);
+
+  // from org.apache.commons.rdf.api.RDFTerm
+  &lt;T&gt; T visit(RDFTerm t,
+              Function&lt;IRI, T&gt; fIRI,
+	      Function&lt;BlankNode, T&gt; fBNode,
+	      Function&lt;Literal, T&gt; fLiteral);
+
+  // from org.apache.commons.rdf.api.IRI
+  String getIRIString(IRI iri);
+
+  // from org.apache.commons.rdf.api.BlankNode
+  String uniqueReference(BlankNode bnode);
+
+  // from org.apache.commons.rdf.api.Literal
+  IRI getDatatype(Literal literal);
+  Optional&lt;String&gt; getLanguageTag(Literal literal);
+  String getLexicalForm(Literal literal);
+  
+}
+</code></pre>
+<p>We are doing exactly the same thing as <a href="http://stackoverflow.com/questions/2709821/what-is-the-purpose-of-self-in-python">Python does with <code>self</code></a>: class methods are just functions where the first argument used to be the receiver (aka the object) of the methods.</p>
+<p>For the sake of brevity, I am actually showing you the final result for the <code>RDF</code> module. Let&rsquo;s discuss the other issues that were fixed at the same time.</p>
+<h2 id="visitor">visitor</h2>
+<p>In Commons RDF 0.1, an <code>RDFTerm</code> is either an <code>IRI</code> or a <code>BlankNode</code> or a <code>Literal</code>. It is not clear to me how a user can dispatch a function over an <code>RDFTerm</code> based on its actual nature.</p>
+<p>My best guess is that one is expected to use <code>instanceof</code> to discriminate between the possible interfaces. In practice, this cannot really work. As a counter-example, consider this implementation of <code>RDFTerm</code> which relies on the <a href="http://www.w3.org/TR/n-triples/">N-Triples</a> encoding of the term:</p>
+<pre><code class="language-java">public class NTriplesBased implements RDFTerm, IRI, BlankNode, Literal {
+  private String ntriplesRepresentation;
+  ...
+}
+</code></pre>
+<p>So how does one visit a class-hierarchy in Java? By using the <a href="http://en.wikipedia.org/wiki/Design_Patterns">Gang of Four</a>&rsquo;s <a href="http://en.wikipedia.org/wiki/Visitor_pattern">Visitor Pattern</a> of course! Ah ah, just kidding. It&rsquo;s 2015, we can now have a <a href="http://logji.blogspot.com/2012/02/correcting-visitor-pattern.html">stateless and polymorphic version of the visitor pattern</a>. Actually, we can do even better using Java 8&rsquo;s lambdas.</p>
+<p>The <code>RDF#visit</code> function defined above in the <code>RDF</code> module is a <a href="https://en.wikipedia.org/wiki/Catamorphism">visitor on steroids</a>:</p>
+<pre><code class="language-java">&lt;T&gt; T visit(RDFTerm t,
+            Function&lt;IRI, T&gt; fIRI,
+            Function&lt;BlankNode, T&gt; fBNode,
+            Function&lt;Literal, T&gt; fLiteral);
+</code></pre>
+<p>The contract for <code>RDF#visit</code> is pretty simple: dispatch the right function &ndash; <code>fIRI</code> or <code>fBNode</code> or <code>fLiteral</code> &ndash; by case, depending on what the <code>RDFTerm t</code> actually is. Note that the function itself is parameterized on the return type, so that any computation can be defined. And finally, as explained before, the <a href="http://en.wikipedia.org/wiki/Visitor_pattern#Details"><em>element</em> part of the visitor</a> &ndash; the <code>RDFTerm</code> itself &ndash; has become the first argument of the function, instead of being the receiver of a method.</p>
+<p>Finally, here is what it looks like on the user site:</p>
+<pre><code class="language-java">RDFTerm term = ???;
+String someString = rdf.visit(term,
+                              iri     -&gt; rdf.getIRIString(iri),
+                              bnode   -&gt; rdf.uniqueReference(bnode),
+                              literal -&gt; rdf.getLexicalForm(literal));
+</code></pre>
+<h2 id="downcasting">downcasting</h2>
+<p><code>RDFTermFactory</code> follows the <a href="http://en.wikipedia.org/wiki/Abstract_factory_pattern">Abstract Factory pattern</a> which is in practice very limited. Pretty often, seeing the generic interface is just not enough and people end up <a href="http://stackoverflow.com/questions/380813/downcasting-in-java">downcasting</a> anyway because other functionalities may need to be exposed from the sub-types.</p>
+<p>In my opinion, this is a big issue in something Commons RDF and <a href="https://www.artima.com/interfacedesign/PreferPoly.html">we can do better</a>. In fact, it comes for free in the <code>RDF</code> module defined above, as <strong>the user sees the types that were actually bound to the generics</strong>.</p>
+<h2 id="immutable-graph">immutable graph</h2>
+<p>If you look at <code>Graph#add(Triple)</code> you&rsquo;ll see that it returns <code>void</code>: graphs in Commons RDF 0.1 <em>have to be mutated in place and there is no way around it</em>. This is wrong but do not expect me to use this post for making the case for alowing immutable graphs: it&rsquo;s 2015 and I should not have to do that.</p>
+<p>Especially when the fix is very simple: <strong>just make <code>add</code> return a new <code>Graph</code></strong>. That&rsquo;s actually what <code>Graph RDF#add(Graph,Triple)</code> does.</p>
+<p>Note that with this approach, one can still manipulate mutable graphs. It&rsquo;s just that code using <code>RDF#add</code> should always use the returned <code>Graph</code>, even if it happens to have been mutated in place.</p>
+<h2 id="stateless-bnode-generator">stateless blank node generator</h2>
+<p>This is how one can create new blank nodes in Commons RDF 0.1 (<a href="https://git-wip-us.apache.org/repos/asf?p=incubator-commonsrdf.git;a=blob;f=api/src/main/java/org/apache/commons/rdf/api/RDFTermFactory.java;h=2801814832b5961769c6d2fbde02d1e494db1124;hb=9ee66b0078da61fed85b5fe0b6d5481e9300b140#l42">full javadoc here</a>):</p>
+<pre><code class="language-java">/** The returned blank node MUST NOT be equal to any existing */
+default BlankNode createBlankNode()
+  throws UnsupportedOperationException { ... }
+/** All `BlankNode`s created with the given `name` MUST be equivalent */
+default BlankNode createBlankNode(String name)
+  throws UnsupportedOperationException { ... }
+</code></pre>
+<p>The contract on the second <code>createBlankNode</code> is problematic as <em>a map from names to previously allocated <code>BlankNodes</code> has to be maintained somewhere</em>. Of course, I am ruling out strategies relying on hashes e.g. <code>UUID#nameUUIDFromBytes</code>, because the <code>BlankNode</code>s would no longer be scoped and two different blank nodes <code>_:b1</code> from two different <a href="http://www.w3.org/TR/turtle/">Turtle</a> documents would return the &ldquo;equivalent <code>BlankNode</code>&rdquo;. So that means that <strong><code>RDFTermFactory</code> is not stateless</strong> and whether the state is within the factory or in a shared state is not relevant.</p>
+<p><strong>I believe that this is outside of the RDF model and that it has no place in the framework.</strong> The mapping from <code>name</code> to <code>BlankNode</code> can always be maintained on the user site, using the strategy that fits the best. Still you can see that I defined <code>BlankNode RDF#createBlankNode(String)</code>. It&rsquo;s because I think another contract can be useful here, where a <code>String</code> can be passed as a hint to be retrieved later e.g. when using <code>RDF#uniqueReference</code>. But it&rsquo;s only a hint, it has no impact on the model itself.</p>
+<h2 id="UnsupportedOperationException">UnsupportedOperationException</h2>
+<p>I just do not understand the value in specifying methods that can throw a <code>UnsupportedOperationException</code> in the context of Commons RDF. I mean, how am I expected to recover from such an exception? Does it make sense to allow for partial implementation?</p>
+<p>Until I see a good use case for that, I have simply removed those exceptions declarations from the functions defined in the <code>RDF</code> module.</p>
+<h2 id="user-side">user side</h2>
+<p>Finally, let&rsquo;s see how a library user could define a parser/serializer using the <code>RDF</code> module:</p>
+<pre><code class="language-java">public class WeirdTurtle&lt;Graph, Triple, RDFTerm, BlankNodeOrIRI extends RDFTerm, IRI extends BlankNodeOrIRI, BlankNode extends BlankNodeOrIRI, Literal extends RDFTerm&gt; {
+
+  private RDF&lt;Graph, Triple, RDFTerm, BlankNodeOrIRI, IRI, BlankNode, Literal&gt; rdf;
+
+  WeirdTurtle(RDF&lt;Graph, Triple, RDFTerm, BlankNodeOrIRI, IRI, BlankNode, Literal&gt; rdf) {
+    this.rdf = rdf;
+  }
+
+  /* a very silly parser */
+  public Graph parse(String input) {
+    Triple triple =
+      rdf.createTriple(rdf.createIRI(&quot;http://example.com/Alice&quot;),
+                       rdf.createIRI(&quot;http://example.com/name&quot;),
+                       rdf.createLiteral(&quot;Alice&quot;));
+    Graph graph = rdf.createGraph();
+    return rdf.add(graph, triple);
+  }
+
+  /* a very silly serializer */
+  public String serialize(Graph graph) {
+    Triple triple = rdf.getTriplesAsIterable(graph, null, null, null).iterator().next();
+    RDFTerm o = rdf.getObject(triple);
+    return rdf.visit(o,
+                     iri -&gt; rdf.getIRIString(iri),
+                     bn -&gt; rdf.uniqueReference(bn),
+                     lit -&gt; rdf.getLexicalForm(lit));
+  }
+    
+}
+</code></pre>
+<h2 id="summary">summary</h2>
+<p>Please allow me to be harsh: <strong>I believe that Commons RDF is mostly useless</strong> in its current form as it suffers from the many flaws I have described in this article.</p>
+<p>As you can expect, <a href="http://mail-archives.apache.org/mod_mbox/commonsrdf-dev/201505.mbox/%3CCANvn8kzfnDoA=sgZLmHyN=bE2Gmba=1oNO0Haq72mi_GFkLRng@mail.gmail.com%3E">I have already shared those concerns on the Commons RDF mailing list</a> but I was told that it would be <cite href="http://mail-archives.apache.org/mod_mbox/commonsrdf-dev/201505.mbox/%3CCAOfJQJ0Bnm0Z+J1F6NZMU8oDk0O7J1H+rM1fLL2kUpTtp_9ECQ@mail.gmail.com%3E">much more valuable to see a patch about your proposal than a quick hack from scratch</cite>. Sadly this is no &ldquo;quick hack&rdquo; and there is no small patch.</p>
+<p>The good news is that <strong>the approach described here works with any RDF implementation on the JVM</strong>, including Jena, Sesame, or <a href="https://github.com/w3c/banana-rdf">banana-rdf</a>. And more importantly, <strong>it works today!</strong></p>
+<p>So if you are interested in a classless &ndash; but still classy &ndash; and immutable-friendly RDF abstraction for the JVM, I invite you to get in touch with me so that we can define that abstraction together.</p>
+
+</article>
+<script src="/asset/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+</body>
+</html>
+

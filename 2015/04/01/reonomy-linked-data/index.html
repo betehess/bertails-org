@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Introduction to Linked Data</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+    @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+    @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+    @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+    
+    body { font-family: 'Droid Serif'; }
+    h1, h2, h3 {
+      font-family: 'Yanone Kaffeesatz';
+      font-weight: normal;
+    }
+    .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+
+    .remark-inline-code { background: #f0f0f0; }
+
+    a:visited { color: blue; }
+    .mainContainer {
+      height: 25%;
+    }
+
+    .gap {
+      height: 3em;
+    }
+
+    .big {
+      font-size: 1.5rem;
+    }
+
+    .box {
+      font-family: 'Yanone Kaffeesatz';
+      position: fixed;
+      padding: 0.5rem;
+      border: 2px solid;
+      background-color: LightSalmon;
+      border-color: red;
+      border-radius: 10px;
+    }
+
+     .sized img {
+       width: 100%;
+     }
+
+     .sized90 img {
+       width: 90%;
+     }
+
+     .sized80 img {
+       width: 80%;
+     }
+
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+
+# Introduction to Linked Data
+
+## Alexandre Bertails [@bertails](http://twitter.com/bertails)
+
+<br>
+
+permalink: http://bertails.org/2015/04/01/reonomy-linked-data
+
+---
+
+## once upon a time, the Web
+
+* URL
+
+* HTTP
+
+* HTML
+
+---
+
+## let's start with an example
+
+taken from https://dvcs.w3.org/hg/ldpwg/raw-file/ldpatch/ldpatch.html#intro-example
+
+```
+@prefix schema: <http://schema.org/> .
+@prefix profile: <http://ogp.me/ns/profile#> .
+@prefix ex: <http://example.org/vocab#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+<http://example.com/timbl#> a schema:Person ;
+  schema:alternateName "TimBL" ;
+  profile:first_name "Tim" ;
+  profile:last_name "Berners-Lee" ;
+  schema:workLocation [ schema:name "W3C/MIT" ] ;
+  schema:performerIn _:b1, _:b2 ;
+  ex:preferredLanguages ( "en" "fr" ).
+
+_:b1 schema:name "F2F5 - Linked Data Platform" ;
+  schema:url <https://www.w3.org/2012/ldp/wiki/F2F5> .
+
+_:b2 a schema:Event ;
+  schema:name "TED 2009" ;
+  schema:startDate "2009-02-04" ;
+  schema:url <http://conferences.ted.com/TED2009/> .
+```
+
+
+
+
+---
+
+## one model, several syntaxes
+
+awesome online RDF converter: [http://rdfvalidator.mybluemix.net/](http://rdfvalidator.mybluemix.net/)
+
+#### default JSON-LD output
+
+```
+{
+  "@graph" : [ {
+    "@id" : "_:b1",
+    "@type" : "schema:Event",
+    "name" : "TED 2009",
+    "startDate" : "2009-02-04",
+    "url" : "http://conferences.ted.com/TED2009/"
+  }, {
+    "@id" : "_:b2",
+    "name" : "F2F5 - Linked Data Platform",
+    "url" : "https://www.w3.org/2012/ldp/wiki/F2F5"
+  }, {
+    "@id" : "_:b3",
+    "name" : "W3C/MIT"
+  }, {
+    "@id" : "http://example.com/timbl#",
+    "@type" : "schema:Person",
+    "ex:preferredLanguages" : {
+      "@list" : [ "en", "fr" ]
+    },
+    "first_name" : "Tim",
+    "last_name" : "Berners-Lee",
+    "alternateName" : "TimBL",
+    "performerIn" : [ "_:b1", "_:b2" ],
+    "workLocation" : "_:b3"
+  } ],
+  ...
+}
+```
+
+Not pretty, but that's the same data!  (see [graph isomorphism](http://www.w3.org/TR/rdf11-concepts/#h3_graph-isomorphism))
+
+
+
+
+
+---
+
+## graph visualization
+
+from RDF/XML and the [W3C RDF(/XML <cough>) Validator](http://www.w3.org/RDF/Validator/)
+
+[.sized[![RDF graph](rdf-graph.png)]](rdf-graph.png)
+
+
+
+
+
+
+---
+
+## JSON-LD [1/2]
+
+In the [JSON-LD Playground](http://json-ld.org/playground/), we can play with the **context** and the **frame** to change the shape of the data:
+
+```
+{
+  "@id": "http://example.com/timbl#",
+  "@type": "schema:Person",
+  "preferredLanguages": [ "en", "fr" ],
+  "first_name": "Tim",
+  "last_name": "Berners-Lee",
+  "alternateName": "TimBL",
+  "performerIn": [
+    {
+      "@id": "_:b0",
+      "@type": "schema:Event",
+      "name": "TED 2009",
+      "startDate": "2009-02-04",
+      "url": "http://conferences.ted.com/TED2009/"
+    },
+  ...
+}
+```
+
+Once again, this is the very same data.
+
+---
+
+## JSON-LD [2/2]
+
+* without a context **and** a frame, JSON-LD won't be used by Web Developers
+
+* JSON-LD encourages you to work on a tree, while RDF is a graph
+
+* don't sacrifice correctness for "pragmatism": JSON itself is usually not enough for data
+
+
+
+
+---
+
+## the RDF 1.1 data model
+
+as defined in [RDF 1.1 Concepts](http://www.w3.org/TR/rdf11-concepts/#section-rdf-graph)
+
+```
+graph       ::= Set(triple)
+triple      ::= (node, iri, node)
+node        ::= iri | bnode | literal
+iri         ::= URI with Unicode
+bnode       ::= local node identifier
+literal     ::= (lexicalForm, datatype, Option(lang))
+lexicalForm ::= string
+datatype    ::= iri
+lang        ::= string
+```
+
+---
+
+## some examples
+
+* `<http://example.com/foo>` is a IRI
+* `xsd:integer` is a prefixed IRI for <http://www.w3.org/2001/XMLSchema#integer>
+* `_:b2719` is a Blank Node
+* `"foo"` is a string literal (`"foo"`, `xsd:string`, no lang)
+* `42` is an integer (`"42"`, `xsd:integer`, no lang)
+* `"foo"@en` is an i18ned string ("foo", `rdf:langString`, `"en"`)
+
+
+
+---
+
+## datasets
+
+```
+dataset     ::= (graph, Set(namedGraph))
+namedGraph  ::= (graphName, graph)
+graphName   ::= iri | bnode
+```
+
+in plain English: a **dataset** is made of one **default graph** and a collection of **named graphs**, graphs with a name (either IRI or Blank Node).
+
+### differents contexts
+
+*database* vs the *web*
+
+---
+
+## Semantic Web^W^WLinked Data timeline
+
+source: [Marin Dimitrov, CTO @ Ontotext](https://www.quora.com/What-are-the-main-reasons-for-the-slow-uptake-of-Semantic-Web-technologies/answer/Marin-Dimitrov)
+
+[.sized80[![Semantic Web timeline](semantic-web-timeline.png)]](semantic-web-timeline.png)
+
+
+---
+
+## to go further
+
+### technologies
+
+* [schema.org](http://schema.org)
+* [JSON-LD in Gmail](https://developers.google.com/schemas/formats/json-ld)
+* [Facebook's Open Graph protocol](http://ogp.me/)
+* [Linked Data Platform 1.0](http://www.w3.org/TR/ldp/)
+
+### datasets
+
+* http://linkeddata.org/
+* http://dbpedia.org/
+
+    </textarea>
+    <!-- script src="https://gnab.github.io/remark/downloads/remark-latest.min.js"-->
+    <script src="remark-0.10.2.min.js" type="text/javascript">
+    </script>
+    <script type="text/javascript">
+    var slideshow = remark.create();
+    </script>
+  </body>
+</html>
